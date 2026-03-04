@@ -1,0 +1,47 @@
+{
+  "name": "raphael-publish",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@types/turndown": "^5.0.6",
+    "framer-motion": "^11.11.11",
+    "highlight.js": "^11.10.0",
+    "html2canvas": "^1.4.1",
+    "html2pdf.js": "^0.14.0",
+    "katex": "^0.16.33",
+    "lucide-react": "^0.460.0",
+    "markdown-it": "^14.1.0",
+    "markdown-it-texmath": "^1.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "turndown": "^7.2.2",
+    "turndown-plugin-gfm": "^1.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/highlight.js": "^10.1.0",
+    "@types/html2pdf.js": "^0.10.0",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^25.3.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.13.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "globals": "^15.11.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.11.0",
+    "vite": "^5.4.10"
+  }
+}

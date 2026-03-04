@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -eu
+
+MSG_FILE="$1"
+TMP_FILE="${MSG_FILE}.tmp"
+
+# Remove co-author trailers to avoid adding GitHub contributor attribution via commit message.
+awk 'BEGIN { IGNORECASE = 1 } !/^[[:space:]]*Co-authored-by[[:space:]]*:/ { print }' "$MSG_FILE" > "$TMP_FILE"
+mv "$TMP_FILE" "$MSG_FILE"

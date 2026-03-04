@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title2 desc2">
+  <title id="title2">Demo Grid Image 2</title>
+  <desc id="desc2">Blue abstract placeholder image for markdown multi-image preview.</desc>
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e2efff"/>
+      <stop offset="100%" stop-color="#b6d4ff"/>
+    </linearGradient>
+    <linearGradient id="shape2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#447fcc"/>
+      <stop offset="100%" stop-color="#2c5d9a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg2)"/>
+  <path d="M0 660 C240 560 420 720 610 630 C840 520 940 660 1200 580 L1200 800 L0 800 Z" fill="#ffffff" opacity="0.55"/>
+  <rect x="170" y="180" width="860" height="430" rx="56" fill="#ffffff" opacity="0.88"/>
+  <rect x="240" y="270" width="640" height="34" rx="17" fill="#447fcc" opacity="0.94"/>
+  <rect x="240" y="330" width="740" height="22" rx="11" fill="#7aa5df"/>
+  <rect x="240" y="370" width="680" height="22" rx="11" fill="#8ab1e6"/>
+  <rect x="240" y="410" width="560" height="22" rx="11" fill="#9abde9"/>
+  <circle cx="950" cy="490" r="85" fill="url(#shape2)"/>
+  <text x="240" y="520" font-size="52" font-family="Segoe UI, Arial, sans-serif" fill="#274a77">Demo Image 02</text>
+</svg>

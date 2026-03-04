@@ -1,0 +1,11 @@
+.DS_Store
+*.bak*
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
