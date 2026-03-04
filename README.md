@@ -35,16 +35,19 @@
 
 ---
 
-## 项目简介
+## 一句话介绍
 
-`vibe-101-publish` 是一个围绕「公众号发布一致性」设计的内容排版产品。  
-目标不是只做一个编辑器，而是把从输入、预览、复制到发布的链路做稳定。
+`vibe-101-publish` 是一个面向公众号创作者的 Markdown 排版与发布工作台。  
+核心目标：让“编辑效果”尽量接近“最终发布效果”。
 
-在线地址：
-- 预览站点：https://yuzc-001.github.io/vibe-101-publish/
-- 仓库地址：https://github.com/Yuzc-001/vibe-101-publish
+## 快速入口
+
+- 在线预览：<https://yuzc-001.github.io/vibe-101-publish/>
+- GitHub 仓库：<https://github.com/Yuzc-001/vibe-101-publish>
+- GitHub 主页：<https://github.com/Yuzc-001>
 
 访问提示：
+
 - 如果首次打开预览是空白页，请强制刷新（`Ctrl + F5`）。
 
 ## 能力矩阵
@@ -59,7 +62,7 @@
 | 文档导出 | HTML / PDF / DOC / DOCX 导出 | 已完成 |
 | 图片资产化 | 超长 data URI 自动资产化，源码区显示缩略预览 | 已完成 |
 
-## 发布导向设计
+## 设计原则
 
 - 发布一致性优先：编辑区体验服务最终发布效果。
 - 微信兼容优先：复制到公众号时稳定优先于“花哨效果”。
@@ -88,13 +91,22 @@ pnpm dev
 pnpm build
 ```
 
+## 常用命令
+
+```bash
+pnpm dev      # 本地开发
+pnpm build    # 生产构建
+```
+
 ## GitHub Pages 部署
 
-仓库已内置自动部署工作流：
+仓库已内置自动部署工作流。
+
 - workflow 文件：`.github/workflows/deploy.yml`
 - 触发方式：push 到 `main`
 
 需要确认：
+
 1. 仓库 `Settings -> Pages`
 2. `Build and deployment` 的 `Source` 设为 `GitHub Actions`
 
@@ -106,18 +118,11 @@ pnpm build
 - 修复 GitHub Pages 项目路径 `base`，解决线上空白页问题。
 - 顶栏新增 GitHub 主页与仓库入口按钮。
 
-## 产品预览素材
-
-<p>
-  <img src="./public/demo-grid-1.svg" width="49%" alt="demo-grid-1" />
-  <img src="./public/demo-grid-2.svg" width="49%" alt="demo-grid-2" />
-</p>
-
 ## 协作与沟通
 
-- 联系邮箱：`zxyu24@outlook.com`
-- 宣传文案：见 [PROMO.md](./PROMO.md)
-- 问题反馈：请提交 [Issue](https://github.com/Yuzc-001/vibe-101-publish/issues)
+- 交流合作：`zxyu24@outlook.com`
+- 宣传文案：[PROMO.md](./PROMO.md)
+- 问题反馈：[Issue](https://github.com/Yuzc-001/vibe-101-publish/issues)
 
 ## 路线图
 
@@ -128,7 +133,8 @@ pnpm build
 
 ## 与上游项目关系
 
-本项目是围绕内容排版与发布工作流的独立新创作。  
+本项目是围绕内容排版与发布工作流的独立新创作。
+
 演进过程中参考并继承了开源项目 [raphael-publish](https://github.com/liuxiaopai-ai/raphael-publish) 的基础能力，在此致谢。
 
 ## 许可证与合规
