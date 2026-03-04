@@ -20,13 +20,17 @@ export default function WorkspaceMetaBar({
     insightsOpen,
     onToggleInsights
 }: WorkspaceMetaBarProps) {
+    const hasExplicitTitle = documentTitle && documentTitle !== 'untitled';
+
     return (
         <div className="glass-toolbar border-b border-[#00000010] dark:border-[#ffffff10] px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
             <div className="min-w-0 flex items-center gap-2">
-                <span className="ui-chip ui-chip-strong min-w-0 max-w-[52vw] sm:max-w-none">
-                    <BookText size={13} />
-                    <span className="truncate">{documentTitle}</span>
-                </span>
+                {hasExplicitTitle && (
+                    <span className="ui-chip ui-chip-strong min-w-0 max-w-[52vw] sm:max-w-none">
+                        <BookText size={13} />
+                        <span className="truncate">{documentTitle}</span>
+                    </span>
+                )}
                 <span className="ui-chip hidden lg:inline-flex">
                     主题: {activeThemeName}
                 </span>

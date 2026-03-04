@@ -40,15 +40,9 @@ export function extractHeadings(markdown: string): HeadingItem[] {
 }
 
 export function extractDocumentTitle(markdown: string): string {
-    const firstHeading = extractHeadings(markdown)[0];
+    const firstHeading = extractHeadings(markdown).find((heading) => heading.level === 1);
     if (firstHeading) return firstHeading.text;
-
-    const firstNonEmptyLine = markdown
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .find((line) => line.length > 0);
-
-    return firstNonEmptyLine || 'untitled';
+    return 'untitled';
 }
 
 export function computeDocumentStats(markdown: string, headingCount: number): DocumentStats {
