@@ -1,7 +1,16 @@
 import html2canvas from 'html2canvas';
+import katex from 'katex';
 import { THEMES } from './themes';
 
 const FORMULA_CAPTURE_MIN_SCALE = 2;
+
+interface FormulaImageData {
+    latex: string;
+    dataUrl: string;
+    width: number;
+    height: number;
+    isDisplay: boolean;
+}
 
 // Helper to convert images to Base64
 async function getBase64Image(imgUrl: string): Promise<string> {
@@ -29,6 +38,10 @@ function extractLatexFromKatexNode(node: Element): string {
     return node.textContent?.trim() || '';
 }
 
+function normalizeLatexForRender(latex: string): string {
+    return latex.replace(/\s+/g, ' ').trim();
+}
+
 function createFormulaFallbackNode(doc: Document, latex: string, isDisplay: boolean): HTMLElement {
     const fallback = doc.createElement(isDisplay ? 'p' : 'span');
     const formulaText = latex ? (isDisplay ? `$$${latex}$$` : `$${latex}$`) : '[公式]';
@@ -44,40 +57,68 @@ function createFormulaFallbackNode(doc: Document, latex: string, isDisplay: bool
 
 async function renderFormulaNodeToPng(
     formulaNode: HTMLElement,
+    latex: string,
     captureRoot: HTMLDivElement
 ): Promise<{ dataUrl: string; width: number; height: number } | null> {
     const isDisplay = formulaNode.classList.contains('katex-display');
+    const normalizedLatex = normalizeLatexForRender(latex);
     const wrapper = document.createElement('div');
     wrapper.style.background = '#ffffff';
     wrapper.style.color = '#111111';
     wrapper.style.display = isDisplay ? 'block' : 'inline-block';
-    wrapper.style.width = isDisplay ? 'fit-content' : 'auto';
+    wrapper.style.width = 'fit-content';
     wrapper.style.maxWidth = '100%';
     wrapper.style.padding = isDisplay ? '6px 0' : '2px 4px';
     wrapper.style.margin = '0';
     wrapper.style.lineHeight = '1.4';
-    wrapper.style.whiteSpace = isDisplay ? 'normal' : 'nowrap';
+    wrapper.style.whiteSpace = 'normal';
     wrapper.style.boxSizing = 'border-box';
-    wrapper.appendChild(formulaNode.cloneNode(true));
+
+    // Re-render from TeX source to avoid failures caused by theme-mutated inline styles in preview DOM.
+    if (normalizedLatex) {
+        try {
+            wrapper.innerHTML = katex.renderToString(normalizedLatex, {
+                throwOnError: false,
+                strict: 'ignore',
+                output: 'htmlAndMathml',
+                displayMode: isDisplay
+            });
+        } catch {
+            wrapper.appendChild(formulaNode.cloneNode(true));
+        }
+    } else {
+        wrapper.appendChild(formulaNode.cloneNode(true));
+    }
+
     captureRoot.appendChild(wrapper);
 
     try {
         await new Promise<void>((resolve) => {
             window.requestAnimationFrame(() => resolve());
         });
-        const canvas = await html2canvas(wrapper, {
-            backgroundColor: '#ffffff',
-            scale: Math.max(FORMULA_CAPTURE_MIN_SCALE, window.devicePixelRatio || 1),
-            useCORS: true,
-            logging: false
-        });
+
         const rect = wrapper.getBoundingClientRect();
-        return {
-            dataUrl: canvas.toDataURL('image/png'),
-            width: Math.max(1, Math.ceil(rect.width)),
-            height: Math.max(1, Math.ceil(rect.height))
-        };
-    } catch {
+        if (rect.width <= 0 || rect.height <= 0) return null;
+
+        const scales = [Math.max(FORMULA_CAPTURE_MIN_SCALE, window.devicePixelRatio || 1), 1.5, 1];
+        for (const scale of scales) {
+            try {
+                const canvas = await html2canvas(wrapper, {
+                    backgroundColor: '#ffffff',
+                    scale,
+                    useCORS: true,
+                    logging: false
+                });
+                return {
+                    dataUrl: canvas.toDataURL('image/png'),
+                    width: Math.max(1, Math.ceil(rect.width)),
+                    height: Math.max(1, Math.ceil(rect.height))
+                };
+            } catch {
+                // Retry with a lower scale when formula is long/complex.
+            }
+        }
+
         return null;
     } finally {
         if (wrapper.parentNode === captureRoot) {
@@ -86,7 +127,55 @@ async function renderFormulaNodeToPng(
     }
 }
 
-async function convertKatexNodesToImages(section: HTMLElement, doc: Document): Promise<void> {
+async function captureFormulasFromRealDom(sourceElement: HTMLElement): Promise<FormulaImageData[]> {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return [];
+
+    const formulaRoots = Array.from(sourceElement.querySelectorAll<HTMLElement>('.katex-display, span.katex')).filter((node) => {
+        if (node.classList.contains('katex') && node.closest('.katex-display')) return false;
+        return true;
+    });
+    if (formulaRoots.length === 0) return [];
+
+    const captureRoot = document.createElement('div');
+    captureRoot.style.position = 'fixed';
+    captureRoot.style.left = '-20000px';
+    captureRoot.style.top = '0';
+    captureRoot.style.width = 'max-content';
+    captureRoot.style.maxWidth = 'none';
+    captureRoot.style.opacity = '0';
+    captureRoot.style.pointerEvents = 'none';
+    captureRoot.style.zIndex = '-1';
+    captureRoot.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(captureRoot);
+
+    const results: FormulaImageData[] = [];
+
+    try {
+        for (const formulaNode of formulaRoots) {
+            const latex = extractLatexFromKatexNode(formulaNode);
+            const isDisplay = formulaNode.classList.contains('katex-display');
+            const renderedFormula = await renderFormulaNodeToPng(formulaNode, latex, captureRoot);
+
+            if (renderedFormula && latex) {
+                results.push({
+                    latex,
+                    dataUrl: renderedFormula.dataUrl,
+                    width: renderedFormula.width,
+                    height: renderedFormula.height,
+                    isDisplay
+                });
+            }
+        }
+    } finally {
+        if (captureRoot.parentNode === document.body) {
+            document.body.removeChild(captureRoot);
+        }
+    }
+
+    return results;
+}
+
+async function convertKatexNodesToImages(section: HTMLElement, doc: Document, formulaImageMap?: FormulaImageData[]): Promise<void> {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
     const formulaRoots = Array.from(section.querySelectorAll<HTMLElement>('.katex-display, span.katex')).filter((node) => {
@@ -95,6 +184,65 @@ async function convertKatexNodesToImages(section: HTMLElement, doc: Document): P
     });
     if (formulaRoots.length === 0) return;
 
+    // 如果提供了映射表，直接使用映射表中的图片
+    if (formulaImageMap && formulaImageMap.length > 0) {
+        let mapIndex = 0;
+        for (const formulaNode of formulaRoots) {
+            const latex = extractLatexFromKatexNode(formulaNode);
+            const isDisplay = formulaNode.classList.contains('katex-display');
+
+            // 从映射表中查找匹配的公式图片
+            const matchedImage = formulaImageMap.find(
+                (item) => item.latex === latex && item.isDisplay === isDisplay
+            );
+
+            if (!matchedImage) {
+                // 如果映射表中没有找到，尝试使用索引匹配（作为后备方案）
+                if (mapIndex < formulaImageMap.length) {
+                    const fallbackImage = formulaImageMap[mapIndex];
+                    mapIndex++;
+
+                    const img = doc.createElement('img');
+                    img.setAttribute('src', fallbackImage.dataUrl);
+                    img.setAttribute('alt', fallbackImage.latex ? `LaTeX: ${fallbackImage.latex}` : 'LaTeX formula');
+                    img.setAttribute('width', String(fallbackImage.width));
+                    img.setAttribute('height', String(fallbackImage.height));
+                    if (fallbackImage.latex) {
+                        img.setAttribute('title', fallbackImage.latex);
+                    }
+                    img.setAttribute(
+                        'style',
+                        fallbackImage.isDisplay
+                            ? `display:block; width:${fallbackImage.width}px; max-width:100%; height:auto; margin: 18px auto;`
+                            : `display:inline-block; width:${fallbackImage.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: -0.12em;`
+                    );
+                    formulaNode.parentNode?.replaceChild(img, formulaNode);
+                } else {
+                    formulaNode.parentNode?.replaceChild(createFormulaFallbackNode(doc, latex, isDisplay), formulaNode);
+                }
+                continue;
+            }
+
+            const img = doc.createElement('img');
+            img.setAttribute('src', matchedImage.dataUrl);
+            img.setAttribute('alt', matchedImage.latex ? `LaTeX: ${matchedImage.latex}` : 'LaTeX formula');
+            img.setAttribute('width', String(matchedImage.width));
+            img.setAttribute('height', String(matchedImage.height));
+            if (matchedImage.latex) {
+                img.setAttribute('title', matchedImage.latex);
+            }
+            img.setAttribute(
+                'style',
+                matchedImage.isDisplay
+                    ? `display:block; width:${matchedImage.width}px; max-width:100%; height:auto; margin: 18px auto;`
+                    : `display:inline-block; width:${matchedImage.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: -0.12em;`
+            );
+            formulaNode.parentNode?.replaceChild(img, formulaNode);
+        }
+        return;
+    }
+
+    // 如果没有映射表，使用原来的逻辑（作为后备方案）
     const captureRoot = document.createElement('div');
     captureRoot.style.position = 'fixed';
     captureRoot.style.left = '-20000px';
@@ -111,7 +259,7 @@ async function convertKatexNodesToImages(section: HTMLElement, doc: Document): P
         for (const formulaNode of formulaRoots) {
             const latex = extractLatexFromKatexNode(formulaNode);
             const isDisplay = formulaNode.classList.contains('katex-display');
-            const renderedFormula = await renderFormulaNodeToPng(formulaNode, captureRoot);
+            const renderedFormula = await renderFormulaNodeToPng(formulaNode, latex, captureRoot);
 
             if (!renderedFormula) {
                 formulaNode.parentNode?.replaceChild(createFormulaFallbackNode(doc, latex, isDisplay), formulaNode);
@@ -152,7 +300,17 @@ function unwrapTexmathWrappers(section: HTMLElement, doc: Document): void {
     });
 }
 
-export async function makeWeChatCompatible(html: string, themeId: string): Promise<string> {
+export async function makeWeChatCompatible(
+    html: string,
+    themeId: string,
+    sourceElement?: HTMLElement
+): Promise<string> {
+    // 如果提供了真实的 DOM 元素，先从中提取公式并生成图片
+    let formulaImageMap: FormulaImageData[] | undefined;
+    if (sourceElement) {
+        formulaImageMap = await captureFormulasFromRealDom(sourceElement);
+    }
+
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
@@ -240,7 +398,7 @@ export async function makeWeChatCompatible(html: string, themeId: string): Promi
     });
 
     // 4. Render KaTeX formulas to PNG images for stable WeChat rendering.
-    await convertKatexNodesToImages(section, doc);
+    await convertKatexNodesToImages(section, doc, formulaImageMap);
     unwrapTexmathWrappers(section, doc);
 
     // 5. Force Inheritance
