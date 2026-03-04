@@ -2,6 +2,7 @@ import React from 'react';
 import { Wand2 } from 'lucide-react';
 import { handleSmartPaste } from '../lib/htmlToMarkdown';
 import type { DocumentStats } from '../lib/documentMetrics';
+import type { ImageAssetPreview } from '../lib/imageAssets';
 
 interface EditorPanelProps {
     markdownInput: string;
@@ -10,6 +11,8 @@ interface EditorPanelProps {
     onEditorScroll: () => void;
     scrollSyncEnabled: boolean;
     stats: Pick<DocumentStats, 'characterCount' | 'lineCount' | 'readMinutes' | 'headingCount' | 'imageCount'>;
+    imageAssetPreviews: ImageAssetPreview[];
+    onCreateImageAsset: (dataUrl: string, suggestedAlt: string) => string;
 }
 
 export default function EditorPanel({
@@ -18,10 +21,14 @@ export default function EditorPanel({
     editorScrollRef,
     onEditorScroll,
     scrollSyncEnabled,
-    stats
+    stats,
+    imageAssetPreviews,
+    onCreateImageAsset
 }: EditorPanelProps) {
     const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-        handleSmartPaste(e, markdownInput, onInputChange);
+        handleSmartPaste(e, markdownInput, onInputChange, {
+            createImageAsset: onCreateImageAsset
+        });
     };
 
     return (
@@ -36,6 +43,32 @@ export default function EditorPanel({
                 placeholder="在这里粘贴或输入 Markdown..."
                 spellCheck={false}
             />
+
+            {imageAssetPreviews.length > 0 && (
+                <div className="flex-shrink-0 px-4 sm:px-6 py-2 border-t border-[#00000010] dark:border-[#ffffff10] bg-[#f7f8fb]/70 dark:bg-[#141418]/70">
+                    <div className="text-[11px] font-medium text-[#6e6e73] dark:text-[#a1a1a6] mb-2">
+                        源码图片缩略图（已折叠 data URI）
+                    </div>
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+                        {imageAssetPreviews.map((preview) => (
+                            <div
+                                key={`${preview.id}-${preview.index}`}
+                                className="shrink-0 w-[84px] rounded-[10px] border border-[#00000012] dark:border-[#ffffff14] bg-white/85 dark:bg-[#1e1e22] p-1.5"
+                                title={`#${preview.index} ${preview.alt}`}
+                            >
+                                <img
+                                    src={preview.src}
+                                    alt={preview.alt}
+                                    className="w-full h-[44px] object-cover rounded-[6px] bg-[#f2f2f7] dark:bg-[#2a2a30]"
+                                />
+                                <p className="mt-1 text-[10px] leading-tight text-[#6e6e73] dark:text-[#a1a1a6] truncate">
+                                    #{preview.index} {preview.alt}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-2.5 border-t border-[#00000010] dark:border-[#ffffff10] bg-[#fbfbfd]/60 dark:bg-[#17171a]/70 backdrop-blur-md">
                 <div className="flex items-center gap-2 min-w-0">

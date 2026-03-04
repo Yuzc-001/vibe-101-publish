@@ -5,6 +5,13 @@ import { makeWeChatCompatible } from './lib/wechatCompat';
 import { THEMES, type ThemeCustomConfig, type ThemeStyleMode } from './lib/themes';
 import { createWordDocBlob, createWordDocxBlob, createWordHtmlDocument } from './lib/wordExport';
 import { defaultContent } from './defaultContent';
+import {
+    type ImageAssetMap,
+    collectImageAssetPreviews,
+    createImageAsset,
+    replaceDataUriImagesWithAssetUrls,
+    resolveImageAssetUrls
+} from './lib/imageAssets';
 import Header from './components/Header';
 import ThemeSelector from './components/ThemeSelector';
 import Toolbar from './components/Toolbar';
@@ -32,6 +39,7 @@ const STORAGE_DEVICE_KEY = 'vibe_101_publish_preview_device_v3';
 const STORAGE_SCROLL_SYNC_KEY = 'vibe_101_publish_scroll_sync_v3';
 const STORAGE_INSIGHTS_OPEN_KEY = 'vibe_101_publish_insights_open_v3';
 const STORAGE_LAST_SAVED_AT_KEY = 'vibe_101_publish_last_saved_at_v3';
+const STORAGE_IMAGE_ASSETS_KEY = 'vibe_101_publish_image_assets_v1';
 const CURRENT_TEMPLATE_VERSION = '2026-03-03-default-content-v1';
 
 const DEFAULT_CUSTOM_THEME: ThemeCustomConfig = {
@@ -60,6 +68,23 @@ function parseThemeStyleMode(raw: string): ThemeStyleMode {
     return DEFAULT_CUSTOM_THEME.styleMode;
 }
 
+function readStoredImageAssets(key: string): ImageAssetMap {
+    if (!isBrowser) return {};
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== 'object') return {};
+
+        const entries = Object.entries(parsed as Record<string, unknown>)
+            .filter((entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string');
+
+        return Object.fromEntries(entries);
+    } catch {
+        return {};
+    }
+}
+
 function isLegacyDefaultMarkdown(content: string): boolean {
     const legacySignals = [
         '# Raphael Publish - 公众号排版大师',
@@ -78,6 +103,7 @@ export default function App() {
         () => (readStoredString(STORAGE_THEME_MODE_KEY, 'light') === 'dark' ? 'dark' : 'light')
     );
     const [markdownInput, setMarkdownInput] = useState<string>(() => readStoredString(STORAGE_MARKDOWN_KEY, defaultContent));
+    const [imageAssets, setImageAssets] = useState<ImageAssetMap>(() => readStoredImageAssets(STORAGE_IMAGE_ASSETS_KEY));
     const [renderedHtml, setRenderedHtml] = useState<string>('');
     const [activeTheme, setActiveTheme] = useState<string>(() => {
         const storedThemeId = readStoredString(STORAGE_ACTIVE_THEME_KEY, THEMES[0].id);
@@ -104,6 +130,7 @@ export default function App() {
     const [isSaving, setIsSaving] = useState(false);
     const [lastSavedAt, setLastSavedAt] = useState<string>(() => readStoredString(STORAGE_LAST_SAVED_AT_KEY, ''));
     const hasRunTemplateMigrationRef = useRef(false);
+    const imageAssetsRef = useRef<ImageAssetMap>(imageAssets);
 
     const previewRef = useRef<HTMLDivElement>(null);
     const editorScrollRef = useRef<HTMLTextAreaElement>(null);
@@ -123,6 +150,11 @@ export default function App() {
 
     const headings = useMemo(() => extractHeadings(markdownInput), [markdownInput]);
     const documentTitle = useMemo(() => extractDocumentTitle(markdownInput), [markdownInput]);
+    const resolvedMarkdownInput = useMemo(() => resolveImageAssetUrls(markdownInput, imageAssets), [markdownInput, imageAssets]);
+    const imageAssetPreviews = useMemo(
+        () => collectImageAssetPreviews(markdownInput, imageAssets),
+        [markdownInput, imageAssets]
+    );
     const stats = useMemo(
         () => computeDocumentStats(markdownInput, headings.length),
         [markdownInput, headings.length]
@@ -162,10 +194,31 @@ export default function App() {
     }, [markdownInput]);
 
     useEffect(() => {
-        const rawHtml = md.render(preprocessMarkdown(markdownInput));
+        const rawHtml = md.render(preprocessMarkdown(resolvedMarkdownInput));
         const styledHtml = applyTheme(rawHtml, activeTheme, customTheme.enabled ? customTheme : undefined);
         setRenderedHtml(styledHtml);
-    }, [markdownInput, activeTheme, customTheme]);
+    }, [resolvedMarkdownInput, activeTheme, customTheme]);
+
+    useEffect(() => {
+        imageAssetsRef.current = imageAssets;
+    }, [imageAssets]);
+
+    const handleCreateImageAsset = useCallback((dataUrl: string) => {
+        const created = createImageAsset(imageAssetsRef.current, dataUrl);
+        if (created.nextAssets !== imageAssetsRef.current) {
+            imageAssetsRef.current = created.nextAssets;
+            setImageAssets(created.nextAssets);
+        }
+        return created.id;
+    }, []);
+
+    useEffect(() => {
+        const migrated = replaceDataUriImagesWithAssetUrls(markdownInput, imageAssetsRef.current);
+        if (!migrated.changed) return;
+        imageAssetsRef.current = migrated.nextAssets;
+        setImageAssets(migrated.nextAssets);
+        setMarkdownInput(migrated.nextMarkdown);
+    }, [markdownInput]);
 
     useEffect(() => {
         if (!isBrowser) return;
@@ -180,6 +233,7 @@ export default function App() {
             localStorage.setItem(STORAGE_DEVICE_KEY, previewDevice);
             localStorage.setItem(STORAGE_SCROLL_SYNC_KEY, scrollSyncEnabled ? '1' : '0');
             localStorage.setItem(STORAGE_INSIGHTS_OPEN_KEY, insightsOpen ? '1' : '0');
+            localStorage.setItem(STORAGE_IMAGE_ASSETS_KEY, JSON.stringify(imageAssets));
             const nowIso = new Date().toISOString();
             localStorage.setItem(STORAGE_LAST_SAVED_AT_KEY, nowIso);
             setLastSavedAt(nowIso);
@@ -187,7 +241,7 @@ export default function App() {
         }, 280);
 
         return () => window.clearTimeout(saveTimer);
-    }, [markdownInput, themeMode, activeTheme, customTheme, previewDevice, scrollSyncEnabled, insightsOpen]);
+    }, [markdownInput, themeMode, activeTheme, customTheme, previewDevice, scrollSyncEnabled, insightsOpen, imageAssets]);
 
     const clearPendingScrollSync = useCallback(() => {
         pendingScrollSyncRef.current = null;
@@ -643,6 +697,8 @@ export default function App() {
                         editorScrollRef={editorScrollRef}
                         onEditorScroll={handleEditorScroll}
                         scrollSyncEnabled={scrollSyncEnabled}
+                        imageAssetPreviews={imageAssetPreviews}
+                        onCreateImageAsset={handleCreateImageAsset}
                         stats={{
                             characterCount: stats.characterCount,
                             lineCount: stats.lineCount,

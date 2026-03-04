@@ -1,5 +1,6 @@
 import TurndownService from 'turndown';
 import { gfm } from 'turndown-plugin-gfm';
+import { IMAGE_ASSET_URL_PREFIX } from './imageAssets';
 
 const turndownService = new TurndownService({
     headingStyle: 'atx',
@@ -117,10 +118,15 @@ function insertAtSelection(
     }, 0);
 }
 
+interface SmartPasteOptions {
+    createImageAsset?: (dataUrl: string, suggestedAlt: string) => string;
+}
+
 export function handleSmartPaste(
     e: React.ClipboardEvent<HTMLTextAreaElement>,
     markdownInput: string,
-    setMarkdownInput: (val: string) => void
+    setMarkdownInput: (val: string) => void,
+    options?: SmartPasteOptions
 ): void {
     const clipboardData = e.clipboardData;
     if (!clipboardData) return;
@@ -137,7 +143,14 @@ export function handleSmartPaste(
             .then((dataUrls) => {
                 const markdownImages = dataUrls
                     .filter(Boolean)
-                    .map((src, index) => `![图片${dataUrls.length > 1 ? ` ${index + 1}` : ''}](${src})`)
+                    .map((src, index) => {
+                        const alt = `图片${dataUrls.length > 1 ? ` ${index + 1}` : ''}`;
+                        if (options?.createImageAsset) {
+                            const assetId = options.createImageAsset(src, alt);
+                            return `![${alt}](${IMAGE_ASSET_URL_PREFIX}${assetId})`;
+                        }
+                        return `![${alt}](${src})`;
+                    })
                     .join('\n\n');
 
                 if (!markdownImages) return;
