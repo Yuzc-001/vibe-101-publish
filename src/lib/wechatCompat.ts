@@ -10,6 +10,7 @@ interface FormulaImageData {
     width: number;
     height: number;
     isDisplay: boolean;
+    asBlock: boolean;
 }
 
 // Helper to convert images to Base64
@@ -42,6 +43,66 @@ function normalizeLatexForRender(latex: string): string {
     return latex.replace(/\s+/g, ' ').trim();
 }
 
+const LONG_INLINE_LATEX_CHAR_THRESHOLD = 88;
+
+function findTopLevelSplitIndex(latex: string, operator: '=' | '+' | '-'): number {
+    let braceDepth = 0;
+    for (let index = 0; index < latex.length; index += 1) {
+        const char = latex[index];
+        if (char === '\\') {
+            index += 1;
+            continue;
+        }
+        if (char === '{') {
+            braceDepth += 1;
+            continue;
+        }
+        if (char === '}') {
+            braceDepth = Math.max(0, braceDepth - 1);
+            continue;
+        }
+        if (braceDepth === 0 && char === operator) {
+            if ((operator === '+' || operator === '-') && index === 0) continue;
+            return index;
+        }
+    }
+    return -1;
+}
+
+function toWrappedDisplayLatex(inlineLatex: string): string | null {
+    const normalized = normalizeLatexForRender(inlineLatex);
+    if (!normalized) return null;
+
+    const equalIndex = findTopLevelSplitIndex(normalized, '=');
+    if (equalIndex > 0) {
+        const left = normalized.slice(0, equalIndex).trim();
+        const right = normalized.slice(equalIndex + 1).trim();
+        if (left && right) {
+            return `\\begin{array}{l}${left}\\\\= ${right}\\end{array}`;
+        }
+    }
+
+    const plusIndex = findTopLevelSplitIndex(normalized, '+');
+    if (plusIndex > 0) {
+        const left = normalized.slice(0, plusIndex).trim();
+        const right = normalized.slice(plusIndex).trim();
+        if (left && right) {
+            return `\\begin{array}{l}${left}\\\\${right}\\end{array}`;
+        }
+    }
+
+    const minusIndex = findTopLevelSplitIndex(normalized, '-');
+    if (minusIndex > 1) {
+        const left = normalized.slice(0, minusIndex).trim();
+        const right = normalized.slice(minusIndex).trim();
+        if (left && right) {
+            return `\\begin{array}{l}${left}\\\\${right}\\end{array}`;
+        }
+    }
+
+    return null;
+}
+
 function createFormulaFallbackNode(doc: Document, latex: string, isDisplay: boolean): HTMLElement {
     const fallback = doc.createElement(isDisplay ? 'p' : 'span');
     const formulaText = latex ? (isDisplay ? `$$${latex}$$` : `$${latex}$`) : '[公式]';
@@ -59,29 +120,33 @@ async function renderFormulaNodeToPng(
     formulaNode: HTMLElement,
     latex: string,
     captureRoot: HTMLDivElement
-): Promise<{ dataUrl: string; width: number; height: number } | null> {
+): Promise<{ dataUrl: string; width: number; height: number; asBlock: boolean } | null> {
     const isDisplay = formulaNode.classList.contains('katex-display');
     const normalizedLatex = normalizeLatexForRender(latex);
+    const shouldPromoteInlineToBlock = !isDisplay && normalizedLatex.length >= LONG_INLINE_LATEX_CHAR_THRESHOLD;
+    const promotedLatex = shouldPromoteInlineToBlock ? toWrappedDisplayLatex(normalizedLatex) : null;
+    const renderAsBlock = isDisplay || Boolean(promotedLatex);
+    const renderLatex = promotedLatex || normalizedLatex;
     const wrapper = document.createElement('div');
     wrapper.style.background = '#ffffff';
     wrapper.style.color = '#111111';
-    wrapper.style.display = isDisplay ? 'block' : 'inline-block';
+    wrapper.style.display = renderAsBlock ? 'block' : 'inline-block';
     wrapper.style.width = 'fit-content';
     wrapper.style.maxWidth = '100%';
-    wrapper.style.padding = isDisplay ? '6px 0' : '2px 4px';
+    wrapper.style.padding = renderAsBlock ? '6px 0' : '2px 4px';
     wrapper.style.margin = '0';
     wrapper.style.lineHeight = '1.4';
     wrapper.style.whiteSpace = 'normal';
     wrapper.style.boxSizing = 'border-box';
 
     // Re-render from TeX source to avoid failures caused by theme-mutated inline styles in preview DOM.
-    if (normalizedLatex) {
+    if (renderLatex) {
         try {
-            wrapper.innerHTML = katex.renderToString(normalizedLatex, {
+            wrapper.innerHTML = katex.renderToString(renderLatex, {
                 throwOnError: false,
                 strict: 'ignore',
                 output: 'htmlAndMathml',
-                displayMode: isDisplay
+                displayMode: renderAsBlock
             });
         } catch {
             wrapper.appendChild(formulaNode.cloneNode(true));
@@ -112,7 +177,8 @@ async function renderFormulaNodeToPng(
                 return {
                     dataUrl: canvas.toDataURL('image/png'),
                     width: Math.max(1, Math.ceil(rect.width)),
-                    height: Math.max(1, Math.ceil(rect.height))
+                    height: Math.max(1, Math.ceil(rect.height)),
+                    asBlock: renderAsBlock
                 };
             } catch {
                 // Retry with a lower scale when formula is long/complex.
@@ -162,7 +228,8 @@ async function captureFormulasFromRealDom(sourceElement: HTMLElement): Promise<F
                     dataUrl: renderedFormula.dataUrl,
                     width: renderedFormula.width,
                     height: renderedFormula.height,
-                    isDisplay
+                    isDisplay,
+                    asBlock: renderedFormula.asBlock
                 });
             }
         }
@@ -212,9 +279,9 @@ async function convertKatexNodesToImages(section: HTMLElement, doc: Document, fo
                     }
                     img.setAttribute(
                         'style',
-                        fallbackImage.isDisplay
+                        fallbackImage.isDisplay || fallbackImage.asBlock
                             ? `display:block; width:${fallbackImage.width}px; max-width:100%; height:auto; margin: 18px auto;`
-                            : `display:inline-block; width:${fallbackImage.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: -0.12em;`
+                            : `display:inline-block; width:${fallbackImage.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: middle;`
                     );
                     formulaNode.parentNode?.replaceChild(img, formulaNode);
                 } else {
@@ -233,9 +300,9 @@ async function convertKatexNodesToImages(section: HTMLElement, doc: Document, fo
             }
             img.setAttribute(
                 'style',
-                matchedImage.isDisplay
+                matchedImage.isDisplay || matchedImage.asBlock
                     ? `display:block; width:${matchedImage.width}px; max-width:100%; height:auto; margin: 18px auto;`
-                    : `display:inline-block; width:${matchedImage.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: -0.12em;`
+                    : `display:inline-block; width:${matchedImage.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: middle;`
             );
             formulaNode.parentNode?.replaceChild(img, formulaNode);
         }
@@ -276,9 +343,9 @@ async function convertKatexNodesToImages(section: HTMLElement, doc: Document, fo
             }
             img.setAttribute(
                 'style',
-                isDisplay
+                isDisplay || renderedFormula.asBlock
                     ? `display:block; width:${renderedFormula.width}px; max-width:100%; height:auto; margin: 18px auto;`
-                    : `display:inline-block; width:${renderedFormula.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: -0.12em;`
+                    : `display:inline-block; width:${renderedFormula.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: middle;`
             );
             formulaNode.parentNode?.replaceChild(img, formulaNode);
         }
