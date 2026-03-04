@@ -244,10 +244,21 @@ function restoreLatexImagesToMath(content: string): string {
 function removeUnrecoverableDataImagePlaceholders(content: string): string {
     // Old buggy conversions may contain data:image/...,... placeholders that cannot render anywhere.
     // Remove them to prevent broken-image alt lines from showing up in WeChat editor.
-    return content.replace(
-        /!\[[^\]]*\]\((data:image\/[a-zA-Z0-9.+-]+;base64,\.\.\.)(?:\s+"[^"]*")?\)/g,
+    let nextContent = content;
+
+    // Markdown image placeholders (include optional trailing detached title).
+    nextContent = nextContent.replace(
+        /!\[[\s\S]*?\]\(\s*data:image\/[a-zA-Z0-9.+-]+;base64,\.\.\.[^)]*\)\s*(?:"[\s\S]*?")?/gi,
         ''
     );
+
+    // HTML img placeholders.
+    nextContent = nextContent.replace(
+        /<img\b[^>]*\bsrc=(["'])\s*data:image\/[a-zA-Z0-9.+-]+;base64,\.\.\.\s*\1[^>]*>/gi,
+        ''
+    );
+
+    return nextContent;
 }
 
 // Avoid bold fragmentation when pasting from certain apps
