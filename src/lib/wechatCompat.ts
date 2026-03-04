@@ -77,6 +77,30 @@ const FORMULA_INLINE_STYLE_PROPS = [
     'z-index'
 ] as const;
 
+const PLACEHOLDER_DATA_IMAGE_PATTERN = /^data:image\/[a-zA-Z0-9.+-]+;base64,\.\.\.$/i;
+
+function isLikelyBrokenWechatImageSrc(src: string): boolean {
+    const value = String(src || '').trim();
+    if (!value) return true;
+    if (PLACEHOLDER_DATA_IMAGE_PATTERN.test(value)) return true;
+    if (/^vibe-asset:\/\//i.test(value)) return true;
+    if (/[\\$]/.test(value)) return true;
+    return false;
+}
+
+function removeImageNodeWithContainerFallback(img: HTMLImageElement): void {
+    const parent = img.parentElement;
+    if (
+        parent &&
+        ['P', 'SPAN', 'DIV'].includes(parent.tagName) &&
+        parent.childNodes.length === 1
+    ) {
+        parent.remove();
+        return;
+    }
+    img.remove();
+}
+
 // Helper to convert images to Base64
 async function getBase64Image(imgUrl: string): Promise<string> {
     try {
@@ -723,10 +747,22 @@ export async function makeWeChatCompatible(
     const imgs = Array.from(section.querySelectorAll('img'));
     await Promise.all(imgs.map(async img => {
         const src = img.getAttribute('src');
-        if (src && !src.startsWith('data:')) {
-            const base64 = await getBase64Image(src);
-            img.setAttribute('src', base64);
+        let normalizedSrc = String(src || '').trim();
+
+        if (normalizedSrc && !normalizedSrc.startsWith('data:')) {
+            normalizedSrc = await getBase64Image(normalizedSrc);
         }
+
+        if (isLikelyBrokenWechatImageSrc(normalizedSrc)) {
+            removeImageNodeWithContainerFallback(img);
+            return;
+        }
+
+        img.setAttribute('src', normalizedSrc);
+
+        // Avoid WeChat rendering fallback alt lines when image loading fails on some clients.
+        img.setAttribute('alt', '');
+        img.removeAttribute('title');
     }));
 
     doc.body.innerHTML = '';
