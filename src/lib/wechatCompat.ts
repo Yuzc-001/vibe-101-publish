@@ -44,9 +44,6 @@ const FORMULA_INLINE_STYLE_PROPS = [
     'padding-right',
     'padding-bottom',
     'padding-left',
-    'overflow',
-    'overflow-x',
-    'overflow-y',
     'box-sizing',
     'font-family',
     'font-size',
@@ -207,9 +204,13 @@ function cloneFormulaWithInlineStyles(formulaNode: HTMLElement): HTMLElement {
 
         if (index === 0) {
             if (formulaNode.classList.contains('katex-display')) {
-                inlineStyle += 'display:block;max-width:100%;overflow-x:auto;margin:18px 0;';
+                // Display formulas: centered, no scroll bar artifacts, stable spacing.
+                inlineStyle +=
+                    'display:block;width:100%;max-width:100%;height:auto;min-height:0;margin:20px 0;text-align:center;overflow:visible;';
             } else {
-                inlineStyle += 'display:inline-block;max-width:100%;vertical-align:middle;';
+                // Inline formulas: keep baseline alignment without clipping in WeChat editor.
+                inlineStyle +=
+                    'display:inline-block;width:auto;max-width:100%;height:auto;min-height:0;vertical-align:-0.08em;line-height:1;overflow:visible;';
             }
             clonedNode.setAttribute('data-wx-formula-root', '1');
         }
