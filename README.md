@@ -1,37 +1,70 @@
-# vibe-101-publish
+<p align="center">
+  <img src="./favicon.svg" width="84" alt="vibe-101-publish icon" />
+</p>
 
-面向公众号发布的 Markdown 排版与导出工作台。
+<h1 align="center">vibe-101-publish</h1>
 
-## 在线预览
+<p align="center">
+  面向公众号创作者的 Markdown 排版与发布工作台
+</p>
 
-- 访问地址：https://yuzc-001.github.io/vibe-101-publish/
-- 用途：直接在线看排版、公式、主题和导出效果。
-- 如果首次打开是空白页：请强制刷新（`Ctrl + F5`）后再试。
+<p align="center">
+  <a href="https://yuzc-001.github.io/vibe-101-publish/">
+    <img src="https://img.shields.io/badge/Live-GitHub%20Pages-2BAE85?logo=githubpages&logoColor=white" alt="Live on GitHub Pages" />
+  </a>
+  <a href="https://github.com/Yuzc-001/vibe-101-publish/actions/workflows/deploy.yml">
+    <img src="https://github.com/Yuzc-001/vibe-101-publish/actions/workflows/deploy.yml/badge.svg" alt="Deploy Status" />
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-3D7FE8.svg" alt="License MIT" />
+  </a>
+  <a href="https://github.com/Yuzc-001/vibe-101-publish/stargazers">
+    <img src="https://img.shields.io/github/stars/Yuzc-001/vibe-101-publish?style=social" alt="GitHub Stars" />
+  </a>
+</p>
 
-## 项目定位
+<p align="center">
+  <a href="https://yuzc-001.github.io/vibe-101-publish/"><strong>在线预览</strong></a>
+  ·
+  <a href="https://github.com/Yuzc-001/vibe-101-publish">GitHub 仓库</a>
+  ·
+  <a href="https://github.com/Yuzc-001">GitHub 主页</a>
+  ·
+  <a href="mailto:zxyu24@outlook.com">交流合作</a>
+</p>
 
-我们把它当作一个产品，而不是“功能拼装编辑器”。
+---
 
-- 发布一致性优先：编辑区效果尽量贴近公众号最终呈现。
-- 微信兼容优先：复制到公众号要稳，不靠运气。
-- 细节可控优先：字体、间距、代码块、公式都可调可验证。
-- 工程化优先：能力可复用、可演进、可持续维护。
+## 项目简介
 
-## 核心能力
+`vibe-101-publish` 是一个围绕「公众号发布一致性」设计的内容排版产品。  
+目标不是只做一个编辑器，而是把从输入、预览、复制到发布的链路做稳定。
 
-- 魔法粘贴：飞书、Notion、网页、Word 富文本粘贴后自动净化为 Markdown。
-- 多主题系统：内置主题 + 推荐主题 + 自定义主题。
-- 多端预览：支持手机、平板、桌面视图，滚动同步更稳定。
-- 公众号发布链路：结构修正、样式补偿、外链图片处理。
-- 公式支持：KaTeX 渲染，兼容公众号复制链路。
-- 多格式导出：HTML / PDF / DOC / DOCX。
+在线地址：
+- 预览站点：https://yuzc-001.github.io/vibe-101-publish/
+- 仓库地址：https://github.com/Yuzc-001/vibe-101-publish
 
-## 近期更新（2026-03-04）
+访问提示：
+- 如果首次打开预览是空白页，请强制刷新（`Ctrl + F5`）。
 
-- 修复手机/平板预览下同步滚动偶发无法回到题目行的问题。
-- 强化 LaTeX 渲染与公众号兼容策略。
-- 新增超长 data URI 图片资产化，源码更清爽，编辑区可见图片缩略预览。
-- 优化 GitHub Pages 部署路径，项目页访问不再空白。
+## 能力矩阵
+
+| 模块 | 能力说明 | 状态 |
+| --- | --- | --- |
+| 富文本粘贴 | 飞书、Notion、网页、Word 粘贴后自动净化为 Markdown | 已完成 |
+| 主题系统 | 内置主题 + 推荐主题 + 自定义主题微调 | 已完成 |
+| 多端预览 | 手机 / 平板 / 桌面视图切换，支持同步滚动 | 已完成 |
+| 公式渲染 | 支持 `$...$`、`$$...$$`，基于 KaTeX 渲染 | 已完成 |
+| 公众号兼容 | 复制链路结构修正、样式补偿、公式兼容策略 | 已完成 |
+| 文档导出 | HTML / PDF / DOC / DOCX 导出 | 已完成 |
+| 图片资产化 | 超长 data URI 自动资产化，源码区显示缩略预览 | 已完成 |
+
+## 发布导向设计
+
+- 发布一致性优先：编辑区体验服务最终发布效果。
+- 微信兼容优先：复制到公众号时稳定优先于“花哨效果”。
+- 细节可控优先：字体、间距、代码块、公式都可验证。
+- 工程可持续优先：每一项功能都可复用、可演进、可维护。
 
 ## 快速开始
 
@@ -44,6 +77,7 @@ start.bat
 ### 本地开发
 
 ```bash
+corepack enable
 pnpm install
 pnpm dev
 ```
@@ -54,15 +88,50 @@ pnpm dev
 pnpm build
 ```
 
-## 协作与联系
+## GitHub Pages 部署
 
+仓库已内置自动部署工作流：
+- workflow 文件：`.github/workflows/deploy.yml`
+- 触发方式：push 到 `main`
+
+需要确认：
+1. 仓库 `Settings -> Pages`
+2. `Build and deployment` 的 `Source` 设为 `GitHub Actions`
+
+## 近期更新（2026-03-04）
+
+- 修复手机/平板预览下同步滚动偶发无法回到题目行的问题。
+- 强化 LaTeX 公式渲染与公众号兼容逻辑。
+- 新增 data URI 图片资产化，降低源码噪音并提供缩略图预览。
+- 修复 GitHub Pages 项目路径 `base`，解决线上空白页问题。
+- 顶栏新增 GitHub 主页与仓库入口按钮。
+
+## 产品预览素材
+
+<p>
+  <img src="./public/demo-grid-1.svg" width="49%" alt="demo-grid-1" />
+  <img src="./public/demo-grid-2.svg" width="49%" alt="demo-grid-2" />
+</p>
+
+## 协作与沟通
+
+- 联系邮箱：`zxyu24@outlook.com`
 - 宣传文案：见 [PROMO.md](./PROMO.md)
-- 交流合作：`zxyu24@outlook.com`
+- 问题反馈：请提交 [Issue](https://github.com/Yuzc-001/vibe-101-publish/issues)
 
-## 致谢与许可
+## 路线图
+
+- 优化公众号内长公式换行与图文混排稳定性。
+- 增加模板市场化能力（主题配置可分享）。
+- 提供文章质量检查与发布前检查报告。
+- 完善 Playwright 回归测试，固化复制链路质量。
+
+## 与上游项目关系
 
 本项目是围绕内容排版与发布工作流的独立新创作。  
-在演进过程中参考并继承了原项目 [raphael-publish](https://github.com/liuxiaopai-ai/raphael-publish) 的开源基础，在此向原作者及贡献者致谢。
+演进过程中参考并继承了开源项目 [raphael-publish](https://github.com/liuxiaopai-ai/raphael-publish) 的基础能力，在此致谢。
+
+## 许可证与合规
 
 - License: [MIT](./LICENSE)
 - Third-party notices: [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
