@@ -1,4 +1,4 @@
-import { Moon, Sparkles, Sun } from 'lucide-react';
+import { ExternalLink, Github, Moon, Sparkles, Sun } from 'lucide-react';
 import { motion } from 'framer-motion';
 import BrandMark from './BrandMark';
 
@@ -21,7 +21,53 @@ export default function Header({ themeMode, onToggleTheme }: HeaderProps) {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-                <span className="ui-chip hidden md:inline-flex">
+                <div className="hidden md:flex items-center gap-2">
+                    <a
+                        href="https://github.com/Yuzc-001"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ui-chip"
+                        title="访问 GitHub 主页"
+                    >
+                        <Github size={12} />
+                        GitHub 主页
+                    </a>
+                    <a
+                        href="https://github.com/Yuzc-001/vibe-101-publish"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ui-chip ui-chip-strong"
+                        title="访问 GitHub 仓库"
+                    >
+                        <ExternalLink size={12} />
+                        GitHub 仓库
+                    </a>
+                </div>
+
+                <div className="flex md:hidden items-center gap-1">
+                    <a
+                        href="https://github.com/Yuzc-001"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ui-icon-btn"
+                        title="访问 GitHub 主页"
+                        aria-label="访问 GitHub 主页"
+                    >
+                        <Github size={18} />
+                    </a>
+                    <a
+                        href="https://github.com/Yuzc-001/vibe-101-publish"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ui-icon-btn ui-icon-btn-active"
+                        title="访问 GitHub 仓库"
+                        aria-label="访问 GitHub 仓库"
+                    >
+                        <ExternalLink size={16} />
+                    </a>
+                </div>
+
+                <span className="ui-chip hidden xl:inline-flex">
                     <Sparkles size={12} />
                     Write · Style · Publish
                 </span>
