@@ -312,7 +312,7 @@ export default function App() {
         if (!previewRef.current) return;
         setIsCopying(true);
         try {
-            const finalHtmlForCopy = await makeWeChatCompatible(renderedHtml, activeTheme);
+            const finalHtmlForCopy = await makeWeChatCompatible(renderedHtml, activeTheme, previewRef.current);
             const htmlBlob = new Blob([finalHtmlForCopy], { type: 'text/html' });
             const textBlob = new Blob([previewRef.current.innerText], { type: 'text/plain' });
             const clipboardItem = new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob });
