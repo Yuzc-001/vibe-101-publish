@@ -129,8 +129,8 @@ async function convertKatexNodesToImages(section: HTMLElement, doc: Document): P
             img.setAttribute(
                 'style',
                 isDisplay
-                    ? 'display:block; width:auto; max-width:100%; height:auto; margin: 18px auto;'
-                    : 'display:inline-block; width:auto; max-width:100%; height:auto; margin: 0 2px; vertical-align: middle;'
+                    ? `display:block; width:${renderedFormula.width}px; max-width:100%; height:auto; margin: 18px auto;`
+                    : `display:inline-block; width:${renderedFormula.width}px; max-width:100%; height:auto; margin: 0 2px; vertical-align: -0.12em;`
             );
             formulaNode.parentNode?.replaceChild(img, formulaNode);
         }
