@@ -14,20 +14,81 @@ const turndownService = new TurndownService({
 
 turndownService.use(gfm);
 
+function normalizeInlineText(value: string): string {
+    return String(value || '')
+        .replace(/\r?\n+/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
+function sanitizeMarkdownAlt(alt: string): string {
+    const normalized = normalizeInlineText(alt || '图片');
+    return normalized
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]');
+}
+
+function sanitizeMarkdownTitle(title: string): string {
+    return normalizeInlineText(title).replace(/"/g, '\\"');
+}
+
+function looksLikeLatex(input: string): boolean {
+    if (!input) return false;
+    return /\\[a-zA-Z]+|[_^{}]|[=+\-*/<>]/.test(input);
+}
+
+function extractLatexFromImageMeta(altRaw: string, titleRaw: string): string | null {
+    const titleCandidate = String(titleRaw || '').trim();
+    if (looksLikeLatex(titleCandidate)) return titleCandidate;
+
+    const altCandidate = String(altRaw || '').trim().replace(/^LaTeX:\s*/i, '');
+    if (looksLikeLatex(altCandidate)) return altCandidate;
+
+    return null;
+}
+
+function shouldUseDisplayMath(imageNode: HTMLImageElement, latexRaw: string): boolean {
+    if (/\r?\n/.test(latexRaw)) return true;
+
+    const widthRaw = imageNode.getAttribute('width') || '';
+    const width = Number.parseFloat(widthRaw);
+    if (Number.isFinite(width) && width >= 220) return true;
+
+    const styleRaw = imageNode.getAttribute('style') || '';
+    if (/display\s*:\s*block/i.test(styleRaw)) return true;
+
+    return normalizeInlineText(latexRaw).length >= 92;
+}
+
+function toMathMarkdown(latexRaw: string, isDisplay: boolean): string {
+    const latex = normalizeInlineText(latexRaw);
+    if (!latex) return '';
+    if (isDisplay) {
+        return `\n\n$$\n${latex}\n$$\n\n`;
+    }
+    return `$${latex}$`;
+}
+
 // Rule to optimize images
 turndownService.addRule('image', {
     filter: 'img',
     replacement: (_content, node: Node) => {
         const imageNode = node as HTMLImageElement;
-        const alt = imageNode.alt || '图片';
-        const src = imageNode.src || '';
-        const title = imageNode.title || '';
-        if (src.startsWith('data:image')) {
-            const typeMatch = src.match(/data:image\/(\w+);/);
-            const type = typeMatch ? typeMatch[1] : 'image';
-            return `![${alt}](data:image/${type};base64,...)${title ? ` "${title}"` : ''}\n`;
+        const altRaw = imageNode.alt || '';
+        const src = (imageNode.getAttribute('src') || imageNode.src || '').trim();
+        const titleRaw = imageNode.title || imageNode.getAttribute('title') || '';
+
+        const latexCandidate = extractLatexFromImageMeta(altRaw, titleRaw);
+        if (latexCandidate) {
+            return toMathMarkdown(latexCandidate, shouldUseDisplayMath(imageNode, latexCandidate));
         }
-        return `![${alt}](${src})${title ? ` "${title}"` : ''}\n`;
+
+        if (!src) return '';
+
+        const alt = sanitizeMarkdownAlt(altRaw || '图片');
+        const title = sanitizeMarkdownTitle(titleRaw);
+        const titleSegment = title ? ` "${title}"` : '';
+        return `![${alt}](${src}${titleSegment})\n`;
     }
 });
 
