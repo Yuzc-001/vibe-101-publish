@@ -75,8 +75,26 @@ md.use(texmath, {
     }
 });
 
+function looksLikeInlineMath(content: string): boolean {
+    if (!content) return false;
+
+    // Avoid treating pure currency/number chunks as formulas.
+    if (/^[+-]?\d+(?:[.,]\d+)?(?:[%a-zA-Z]{0,4})?$/.test(content)) return false;
+
+    return /\\|[_^{}]|[=+\-*/<>]/.test(content);
+}
+
 // Avoid bold fragmentation when pasting from certain apps
 export function preprocessMarkdown(content: string) {
+    // Normalize "$ ... $" to "$...$" for inline formulas.
+    // markdown-it-texmath does not parse inline math with extra spaces next to delimiters.
+    content = content.replace(/(?<!\\)\$(?!\$)([^$\n]*?)(?<!\\)\$(?!\$)/g, (fullMatch, innerRaw: string) => {
+        const trimmed = innerRaw.trim();
+        if (trimmed === innerRaw) return fullMatch;
+        if (!looksLikeInlineMath(trimmed)) return fullMatch;
+        return `$${trimmed}$`;
+    });
+
     content = content.replace(/^[ ]{0,3}(\*[ ]*\*[ ]*\*[* ]*)[ \t]*$/gm, '***');
     content = content.replace(/^[ ]{0,3}(-[ ]*-[ ]*-[- ]*)[ \t]*$/gm, '---');
     content = content.replace(/^[ ]{0,3}(_[ ]*_[ ]*_[_ ]*)[ \t]*$/gm, '___');
