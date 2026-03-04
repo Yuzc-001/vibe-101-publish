@@ -2,9 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
+const isGitHubPages = process.env.GITHUB_PAGES === 'true';
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+const pagesBase = repoName ? `/${repoName}/` : '/';
+
 export default defineConfig({
     plugins: [react()],
-    base: '/',
+    base: isGitHubPages ? pagesBase : '/',
     build: {
         chunkSizeWarningLimit: 900,
         rollupOptions: {
