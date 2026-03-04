@@ -157,6 +157,13 @@ function normalizeEscapedLatexCommands(latexRaw: string): string {
         .replace(/\\\^/g, '^');
 }
 
+function extractInlineMathSegment(text: string): string | null {
+    const source = String(text || '');
+    const match = source.match(/\$([^$]+)\$/);
+    if (!match) return null;
+    return match[1]?.trim() || null;
+}
+
 function normalizeBlockMathDelimiters(content: string): string {
     return content.replace(/\$\$([\s\S]*?)\$\$/g, (_fullMatch: string, innerRaw: string) => {
         const inner = normalizeEscapedLatexCommands(String(innerRaw || ''));
@@ -185,24 +192,47 @@ function repairDetachedImageTitles(content: string): string {
 function restoreLatexImagesToMath(content: string): string {
     // Convert formula image markdown back to TeX, including legacy pasted forms.
     return content.replace(
-        /!\[LaTeX:\s*([\s\S]*?)\]\(([^)]*)\)/g,
-        (_fullMatch: string, altLatexRaw: string, srcAndTitleRaw: string) => {
-            const altLatex = String(altLatexRaw || '').trim();
+        /!\[([^\]]*)\]\(([^)]*)\)/g,
+        (_fullMatch: string, altRaw: string, srcAndTitleRaw: string) => {
+            const alt = String(altRaw || '').trim();
             const srcAndTitle = String(srcAndTitleRaw || '').trim();
 
-            let titleLatex = '';
-            const srcTitleMatch = srcAndTitle.match(/^(\S+)(?:\s+"([^"]*)")?$/);
-            if (srcTitleMatch && srcTitleMatch[2]) {
-                titleLatex = String(srcTitleMatch[2]).trim();
+            const parsed = srcAndTitle.match(/^(\S+)(?:\s+"([^"]*)")?\s*$/);
+            if (!parsed) return _fullMatch;
+
+            const src = String(parsed[1] || '').trim();
+            const title = String(parsed[2] || '').trim();
+
+            const titleNormalized = normalizeEscapedLatexCommands(title);
+            const altWithoutPrefix = alt.replace(/^LaTeX:\s*/i, '').trim();
+            const altNormalized = normalizeEscapedLatexCommands(altWithoutPrefix);
+
+            let latexRaw = '';
+            if (titleNormalized && looksLikeInlineMath(titleNormalized)) {
+                latexRaw = titleNormalized;
+            } else if (/^LaTeX:/i.test(alt) && altNormalized && looksLikeInlineMath(altNormalized)) {
+                latexRaw = altNormalized;
+            } else if (src.startsWith('data:image/') || src.startsWith('vibe-asset://')) {
+                const inlineMath = extractInlineMathSegment(alt);
+                if (inlineMath) {
+                    const inlineMathNormalized = normalizeEscapedLatexCommands(inlineMath);
+                    if (inlineMathNormalized && looksLikeInlineMath(inlineMathNormalized)) {
+                        latexRaw = inlineMathNormalized;
+                    }
+                }
             }
 
-            const latexRaw = (titleLatex || altLatex).replace(/^LaTeX:\s*/i, '').trim();
             if (!latexRaw) return _fullMatch;
+
+            let titleLatex = '';
+            if (title && looksLikeInlineMath(titleNormalized)) {
+                titleLatex = titleNormalized;
+            }
 
             const normalizedLatex = normalizeEscapedLatexCommands(latexRaw).replace(/\s*\r?\n\s*/g, ' ').trim();
             if (!normalizedLatex) return _fullMatch;
 
-            const preferDisplay = /\r?\n/.test(altLatex) || /\r?\n/.test(titleLatex) || normalizedLatex.length >= 92;
+            const preferDisplay = /\r?\n/.test(alt) || /\r?\n/.test(titleLatex) || normalizedLatex.length >= 92;
             if (preferDisplay) {
                 return `\n\n$$\n${normalizedLatex}\n$$\n\n`;
             }
@@ -211,10 +241,20 @@ function restoreLatexImagesToMath(content: string): string {
     );
 }
 
+function removeUnrecoverableDataImagePlaceholders(content: string): string {
+    // Old buggy conversions may contain data:image/...,... placeholders that cannot render anywhere.
+    // Remove them to prevent broken-image alt lines from showing up in WeChat editor.
+    return content.replace(
+        /!\[[^\]]*\]\((data:image\/[a-zA-Z0-9.+-]+;base64,\.\.\.)(?:\s+"[^"]*")?\)/g,
+        ''
+    );
+}
+
 // Avoid bold fragmentation when pasting from certain apps
 export function preprocessMarkdown(content: string) {
     content = repairDetachedImageTitles(content);
     content = restoreLatexImagesToMath(content);
+    content = removeUnrecoverableDataImagePlaceholders(content);
     content = normalizeBlockMathDelimiters(content);
 
     // Normalize "$ ... $" to "$...$" for inline formulas.
