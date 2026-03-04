@@ -13,6 +13,73 @@ interface FormulaImageData {
     asBlock: boolean;
 }
 
+interface FormulaHtmlData {
+    latex: string;
+    isDisplay: boolean;
+    html: string;
+}
+
+const FORMULA_INLINE_STYLE_PROPS = [
+    'display',
+    'position',
+    'top',
+    'right',
+    'bottom',
+    'left',
+    'float',
+    'clear',
+    'width',
+    'height',
+    'max-width',
+    'min-width',
+    'max-height',
+    'min-height',
+    'margin',
+    'margin-top',
+    'margin-right',
+    'margin-bottom',
+    'margin-left',
+    'padding',
+    'padding-top',
+    'padding-right',
+    'padding-bottom',
+    'padding-left',
+    'overflow',
+    'overflow-x',
+    'overflow-y',
+    'box-sizing',
+    'font-family',
+    'font-size',
+    'font-style',
+    'font-weight',
+    'font-stretch',
+    'line-height',
+    'letter-spacing',
+    'word-spacing',
+    'text-align',
+    'text-indent',
+    'text-transform',
+    'text-decoration',
+    'text-rendering',
+    'white-space',
+    'vertical-align',
+    'color',
+    'background',
+    'background-color',
+    'border',
+    'border-top',
+    'border-right',
+    'border-bottom',
+    'border-left',
+    'border-radius',
+    'outline',
+    'opacity',
+    'visibility',
+    'transform',
+    'transform-origin',
+    'z-index'
+] as const;
+
 // Helper to convert images to Base64
 async function getBase64Image(imgUrl: string): Promise<string> {
     try {
@@ -114,6 +181,96 @@ function createFormulaFallbackNode(doc: Document, latex: string, isDisplay: bool
             : 'display:inline; padding: 0 2px; border-radius: 4px; background: #f5f5f5; color: #333; font-family: Menlo, Consolas, monospace;'
     );
     return fallback;
+}
+
+function buildInlineFormulaStyle(computedStyle: CSSStyleDeclaration): string {
+    let inlineStyle = '';
+    FORMULA_INLINE_STYLE_PROPS.forEach((property) => {
+        const value = computedStyle.getPropertyValue(property).trim();
+        if (!value) return;
+        inlineStyle += `${property}:${value};`;
+    });
+    return inlineStyle;
+}
+
+function cloneFormulaWithInlineStyles(formulaNode: HTMLElement): HTMLElement {
+    const clonedRoot = formulaNode.cloneNode(true) as HTMLElement;
+    const sourceNodes = [formulaNode, ...Array.from(formulaNode.querySelectorAll<HTMLElement>('*'))];
+    const clonedNodes = [clonedRoot, ...Array.from(clonedRoot.querySelectorAll<HTMLElement>('*'))];
+    const pairCount = Math.min(sourceNodes.length, clonedNodes.length);
+
+    for (let index = 0; index < pairCount; index += 1) {
+        const sourceNode = sourceNodes[index];
+        const clonedNode = clonedNodes[index];
+        const computedStyle = window.getComputedStyle(sourceNode);
+        let inlineStyle = buildInlineFormulaStyle(computedStyle);
+
+        if (index === 0) {
+            if (formulaNode.classList.contains('katex-display')) {
+                inlineStyle += 'display:block;max-width:100%;overflow-x:auto;margin:18px 0;';
+            } else {
+                inlineStyle += 'display:inline-block;max-width:100%;vertical-align:middle;';
+            }
+            clonedNode.setAttribute('data-wx-formula-root', '1');
+        }
+
+        clonedNode.setAttribute('style', inlineStyle);
+        clonedNode.setAttribute('data-wx-formula-node', '1');
+        clonedNode.removeAttribute('class');
+        clonedNode.removeAttribute('id');
+    }
+
+    return clonedRoot;
+}
+
+function captureFormulaHtmlFromRealDom(sourceElement: HTMLElement): FormulaHtmlData[] {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return [];
+
+    const formulaRoots = Array.from(sourceElement.querySelectorAll<HTMLElement>('.katex-display, span.katex')).filter((node) => {
+        if (node.classList.contains('katex') && node.closest('.katex-display')) return false;
+        return true;
+    });
+    if (formulaRoots.length === 0) return [];
+
+    const results: FormulaHtmlData[] = [];
+    formulaRoots.forEach((formulaNode) => {
+        const latex = extractLatexFromKatexNode(formulaNode);
+        const isDisplay = formulaNode.classList.contains('katex-display');
+        const inlinedClone = cloneFormulaWithInlineStyles(formulaNode);
+        results.push({
+            latex,
+            isDisplay,
+            html: inlinedClone.outerHTML
+        });
+    });
+    return results;
+}
+
+function replaceKatexNodesWithInlineHtml(section: HTMLElement, doc: Document, formulaHtmlMap?: FormulaHtmlData[]): boolean {
+    if (!formulaHtmlMap || formulaHtmlMap.length === 0) return false;
+
+    const formulaRoots = Array.from(section.querySelectorAll<HTMLElement>('.katex-display, span.katex')).filter((node) => {
+        if (node.classList.contains('katex') && node.closest('.katex-display')) return false;
+        return true;
+    });
+    if (formulaRoots.length === 0) return true;
+
+    let replacedCount = 0;
+    for (let index = 0; index < formulaRoots.length; index += 1) {
+        const formulaNode = formulaRoots[index];
+        const mapped = formulaHtmlMap[index];
+        if (!mapped) continue;
+
+        const tempContainer = doc.createElement('div');
+        tempContainer.innerHTML = mapped.html;
+        const replacement = tempContainer.firstElementChild as HTMLElement | null;
+        if (!replacement) continue;
+
+        formulaNode.parentNode?.replaceChild(replacement, formulaNode);
+        replacedCount += 1;
+    }
+
+    return replacedCount === formulaRoots.length;
 }
 
 async function renderFormulaNodeToPng(
@@ -372,9 +529,15 @@ export async function makeWeChatCompatible(
     themeId: string,
     sourceElement?: HTMLElement
 ): Promise<string> {
-    // 如果提供了真实的 DOM 元素，先从中提取公式并生成图片
-    let formulaImageMap: FormulaImageData[] | undefined;
+    // 如果提供了真实的 DOM 元素，优先提取可直接复用的公式 HTML（非图片）
+    let formulaHtmlMap: FormulaHtmlData[] | undefined;
     if (sourceElement) {
+        formulaHtmlMap = captureFormulaHtmlFromRealDom(sourceElement);
+    }
+
+    // 如果无法复用 HTML，再走图片映射兜底
+    let formulaImageMap: FormulaImageData[] | undefined;
+    if (sourceElement && (!formulaHtmlMap || formulaHtmlMap.length === 0)) {
         formulaImageMap = await captureFormulasFromRealDom(sourceElement);
     }
 
@@ -464,8 +627,11 @@ export async function makeWeChatCompatible(
         }
     });
 
-    // 4. Render KaTeX formulas to PNG images for stable WeChat rendering.
-    await convertKatexNodesToImages(section, doc, formulaImageMap);
+    // 4. Prefer inline-styled formula HTML; fallback to PNG images.
+    const htmlFormulaApplied = replaceKatexNodesWithInlineHtml(section, doc, formulaHtmlMap);
+    if (!htmlFormulaApplied) {
+        await convertKatexNodesToImages(section, doc, formulaImageMap);
+    }
     unwrapTexmathWrappers(section, doc);
 
     // 5. Force Inheritance
@@ -479,8 +645,9 @@ export async function makeWeChatCompatible(
     // We only enforce on specific text tags that WeChat likes to hijack
     const textNodes = section.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, blockquote, span');
     textNodes.forEach(node => {
-        // Preserve code highlighting tokens inside code blocks.
-        if (node.tagName === 'SPAN' && node.closest('pre, code')) return;
+        // Preserve code tokens and formula subtree styles.
+        if (node.closest('pre, code')) return;
+        if (node.closest('[data-wx-formula-root], [data-wx-formula-node], .katex, .katex-display')) return;
 
         let currentStyle = node.getAttribute('style') || '';
 
@@ -505,6 +672,7 @@ export async function makeWeChatCompatible(
     // Example: <strong>标题</strong>：说明 -> <strong>标题：</strong>说明
     const inlineNodes = section.querySelectorAll('strong, b, em, span, a, code');
     inlineNodes.forEach(node => {
+        if (node.closest('[data-wx-formula-root], [data-wx-formula-node], .katex, .katex-display')) return;
         const next = node.nextSibling;
         if (!next || next.nodeType !== Node.TEXT_NODE) return;
         const text = next.textContent || '';
