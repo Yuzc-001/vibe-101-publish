@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./favicon.svg" width="84" alt="vibe-101-publish icon" />
+  <img src="./favicon.svg" width="92" alt="vibe-101-publish logo" />
 </p>
 
 <h1 align="center">vibe-101-publish</h1>
@@ -10,13 +10,13 @@
 
 <p align="center">
   <a href="https://yuzc-001.github.io/vibe-101-publish/">
-    <img src="https://img.shields.io/badge/Live-GitHub%20Pages-2BAE85?logo=githubpages&logoColor=white" alt="Live on GitHub Pages" />
+    <img src="https://img.shields.io/badge/Live%20Preview-GitHub%20Pages-2BAE85?logo=githubpages&logoColor=white" alt="Live Preview" />
   </a>
   <a href="https://github.com/Yuzc-001/vibe-101-publish/actions/workflows/deploy.yml">
     <img src="https://github.com/Yuzc-001/vibe-101-publish/actions/workflows/deploy.yml/badge.svg" alt="Deploy Status" />
   </a>
   <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-3D7FE8.svg" alt="License MIT" />
+    <img src="https://img.shields.io/badge/License-MIT-3D7FE8.svg" alt="MIT License" />
   </a>
   <a href="https://github.com/Yuzc-001/vibe-101-publish/stargazers">
     <img src="https://img.shields.io/github/stars/Yuzc-001/vibe-101-publish?style=social" alt="GitHub Stars" />
@@ -35,49 +35,40 @@
 
 ---
 
-## 一句话介绍
+## 为什么是这个项目
 
-`vibe-101-publish` 是一个面向公众号创作者的 Markdown 排版与发布工作台。  
-核心目标：让“编辑效果”尽量接近“最终发布效果”。
+很多排版工具在编辑区看起来不错，但发布到公众号后会出现样式漂移、结构错位、公式异常。  
+`vibe-101-publish` 的定位很直接：把“最后一公里发布质量”做成产品核心能力。
 
 ## 快速入口
 
 - 在线预览：<https://yuzc-001.github.io/vibe-101-publish/>
-- GitHub 仓库：<https://github.com/Yuzc-001/vibe-101-publish>
-- GitHub 主页：<https://github.com/Yuzc-001>
+- 仓库地址：<https://github.com/Yuzc-001/vibe-101-publish>
+- 团队主页：<https://github.com/Yuzc-001>
 
-访问提示：
-
-- 如果首次打开预览是空白页，请强制刷新（`Ctrl + F5`）。
+提示：
+- 若首次访问预览出现空白，请强制刷新 `Ctrl + F5`。
 
 ## 能力矩阵
 
-| 模块 | 能力说明 | 状态 |
+| 模块 | 状态 | 能力说明 |
 | --- | --- | --- |
-| 富文本粘贴 | 飞书、Notion、网页、Word 粘贴后自动净化为 Markdown | 已完成 |
-| 主题系统 | 内置主题 + 推荐主题 + 自定义主题微调 | 已完成 |
-| 多端预览 | 手机 / 平板 / 桌面视图切换，支持同步滚动 | 已完成 |
-| 公式渲染 | 支持 `$...$`、`$$...$$`，基于 KaTeX 渲染 | 已完成 |
-| 公众号兼容 | 复制链路结构修正、样式补偿、公式兼容策略 | 已完成 |
-| 文档导出 | HTML / PDF / DOC / DOCX 导出 | 已完成 |
-| 图片资产化 | 超长 data URI 自动资产化，源码区显示缩略预览 | 已完成 |
+| 富文本粘贴 | ✅ 已完成 | 飞书、Notion、网页、Word 粘贴后自动净化为 Markdown |
+| 主题系统 | ✅ 已完成 | 内置主题 + 推荐主题 + 自定义主题微调 |
+| 多端预览 | ✅ 已完成 | 手机 / 平板 / 桌面视图切换，支持同步滚动 |
+| 公式渲染 | ✅ 已完成 | 支持 `$...$`、`$$...$$`，基于 KaTeX 渲染 |
+| 公众号兼容 | ✅ 已完成 | 复制链路结构修正、样式补偿、公式兼容策略 |
+| 文档导出 | ✅ 已完成 | HTML / PDF / DOC / DOCX 导出 |
+| 图片资产化 | ✅ 已完成 | 超长 data URI 自动资产化，源码区显示缩略预览 |
 
 ## 设计原则
 
-- 发布一致性优先：编辑区体验服务最终发布效果。
-- 微信兼容优先：复制到公众号时稳定优先于“花哨效果”。
-- 细节可控优先：字体、间距、代码块、公式都可验证。
-- 工程可持续优先：每一项功能都可复用、可演进、可维护。
+- 发布一致性优先：编辑体验服务最终发布效果。
+- 微信兼容优先：复制链路稳定优先。
+- 细节可控优先：文字节奏、代码样式、公式展示都可验证。
+- 可持续迭代优先：能力可复用、可维护、可演进。
 
 ## 快速开始
-
-### Windows 一键启动
-
-```bat
-start.bat
-```
-
-### 本地开发
 
 ```bash
 corepack enable
@@ -85,59 +76,50 @@ pnpm install
 pnpm dev
 ```
 
-### 生产构建
+## 构建命令
 
 ```bash
 pnpm build
 ```
 
-## 常用命令
+## 部署说明（GitHub Pages）
 
-```bash
-pnpm dev      # 本地开发
-pnpm build    # 生产构建
-```
+项目使用 `.github/workflows/deploy.yml` 自动部署。
 
-## GitHub Pages 部署
+1. 推送到 `main` 分支后自动触发构建。
+2. 仓库设置中将 `Settings -> Pages -> Source` 设为 `GitHub Actions`。
 
-仓库已内置自动部署工作流。
+## 更新摘要（2026-03-04）
 
-- workflow 文件：`.github/workflows/deploy.yml`
-- 触发方式：push 到 `main`
-
-需要确认：
-
-1. 仓库 `Settings -> Pages`
-2. `Build and deployment` 的 `Source` 设为 `GitHub Actions`
-
-## 近期更新（2026-03-04）
-
-- 修复手机/平板预览下同步滚动偶发无法回到题目行的问题。
-- 强化 LaTeX 公式渲染与公众号兼容逻辑。
-- 新增 data URI 图片资产化，降低源码噪音并提供缩略图预览。
-- 修复 GitHub Pages 项目路径 `base`，解决线上空白页问题。
+- 修复手机/平板预览下同步滚动偶发回跳问题。
+- 强化 LaTeX 渲染与公众号兼容策略。
+- 新增 data URI 图片资产化与源码缩略预览。
+- 修复 GitHub Pages 项目路径，解决线上空白页问题。
 - 顶栏新增 GitHub 主页与仓库入口按钮。
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Yuzc-001/vibe-101-publish&type=Date)](https://www.star-history.com/#Yuzc-001/vibe-101-publish&Date)
 
 ## 协作与沟通
 
-- 交流合作：`zxyu24@outlook.com`
-- 宣传文案：[PROMO.md](./PROMO.md)
-- 问题反馈：[Issue](https://github.com/Yuzc-001/vibe-101-publish/issues)
+- 合作联系：`zxyu24@outlook.com`
+- 宣传文案：见 [PROMO.md](./PROMO.md)
+- 问题反馈：[Issues](https://github.com/Yuzc-001/vibe-101-publish/issues)
 
 ## 路线图
 
 - 优化公众号内长公式换行与图文混排稳定性。
-- 增加模板市场化能力（主题配置可分享）。
-- 提供文章质量检查与发布前检查报告。
-- 完善 Playwright 回归测试，固化复制链路质量。
+- 增加主题配置分享能力。
+- 增加发布前质量检查报告。
+- 完善自动化回归测试，降低复制链路回归风险。
 
-## 与上游项目关系
+## 致谢
 
-本项目是围绕内容排版与发布工作流的独立新创作。
-
+本项目是围绕内容排版与发布工作流的独立新创作。  
 演进过程中参考并继承了开源项目 [raphael-publish](https://github.com/liuxiaopai-ai/raphael-publish) 的基础能力，在此致谢。
 
-## 许可证与合规
+## 许可与合规
 
 - License: [MIT](./LICENSE)
 - Third-party notices: [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
