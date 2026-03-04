@@ -142,12 +142,26 @@ function normalizeInlineMathDelimiters(content: string): string {
             continue;
         }
 
-        const normalizedInner = trimmed.replace(/\s*\r?\n\s*/g, ' ');
+        const normalizedInner = normalizeEscapedLatexCommands(trimmed).replace(/\s*\r?\n\s*/g, ' ');
         output += `$${normalizedInner}$`;
         index = end + 1;
     }
 
     return output;
+}
+
+function normalizeEscapedLatexCommands(latexRaw: string): string {
+    return String(latexRaw || '')
+        .replace(/\\\\(?=[A-Za-z])/g, '\\')
+        .replace(/\\_/g, '_')
+        .replace(/\\\^/g, '^');
+}
+
+function normalizeBlockMathDelimiters(content: string): string {
+    return content.replace(/\$\$([\s\S]*?)\$\$/g, (_fullMatch: string, innerRaw: string) => {
+        const inner = normalizeEscapedLatexCommands(String(innerRaw || ''));
+        return `$$${inner}$$`;
+    });
 }
 
 function repairDetachedImageTitles(content: string): string {
@@ -185,7 +199,7 @@ function restoreLatexImagesToMath(content: string): string {
             const latexRaw = (titleLatex || altLatex).replace(/^LaTeX:\s*/i, '').trim();
             if (!latexRaw) return _fullMatch;
 
-            const normalizedLatex = latexRaw.replace(/\s*\r?\n\s*/g, ' ').trim();
+            const normalizedLatex = normalizeEscapedLatexCommands(latexRaw).replace(/\s*\r?\n\s*/g, ' ').trim();
             if (!normalizedLatex) return _fullMatch;
 
             const preferDisplay = /\r?\n/.test(altLatex) || /\r?\n/.test(titleLatex) || normalizedLatex.length >= 92;
@@ -201,6 +215,7 @@ function restoreLatexImagesToMath(content: string): string {
 export function preprocessMarkdown(content: string) {
     content = repairDetachedImageTitles(content);
     content = restoreLatexImagesToMath(content);
+    content = normalizeBlockMathDelimiters(content);
 
     // Normalize "$ ... $" to "$...$" for inline formulas.
     // markdown-it-texmath does not parse inline math when delimiters keep surrounding spaces/newlines.

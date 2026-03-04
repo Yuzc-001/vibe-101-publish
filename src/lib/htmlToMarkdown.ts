@@ -21,6 +21,15 @@ function normalizeInlineText(value: string): string {
         .trim();
 }
 
+function normalizeLatexCommands(latexRaw: string): string {
+    const normalized = normalizeInlineText(latexRaw);
+    if (!normalized) return '';
+    return normalized
+        .replace(/\\\\(?=[A-Za-z])/g, '\\')
+        .replace(/\\_/g, '_')
+        .replace(/\\\^/g, '^');
+}
+
 function sanitizeMarkdownAlt(alt: string): string {
     const normalized = normalizeInlineText(alt || '图片');
     return normalized
@@ -61,7 +70,7 @@ function shouldUseDisplayMath(imageNode: HTMLImageElement, latexRaw: string): bo
 }
 
 function toMathMarkdown(latexRaw: string, isDisplay: boolean): string {
-    const latex = normalizeInlineText(latexRaw);
+    const latex = normalizeLatexCommands(latexRaw);
     if (!latex) return '';
     if (isDisplay) {
         return `\n\n$$\n${latex}\n$$\n\n`;
