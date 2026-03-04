@@ -84,16 +84,77 @@ function looksLikeInlineMath(content: string): boolean {
     return /\\|[_^{}]|[=+\-*/<>]/.test(content);
 }
 
+function normalizeInlineMathDelimiters(content: string): string {
+    let output = '';
+    let index = 0;
+
+    const isEscapedDollar = (input: string, position: number): boolean => {
+        if (input[position] !== '$') return false;
+        let slashCount = 0;
+        for (let cursor = position - 1; cursor >= 0 && input[cursor] === '\\'; cursor -= 1) {
+            slashCount += 1;
+        }
+        return slashCount % 2 === 1;
+    };
+
+    while (index < content.length) {
+        const currentChar = content[index];
+        const isSingleDollar =
+            currentChar === '$' &&
+            content[index + 1] !== '$' &&
+            content[index - 1] !== '$' &&
+            !isEscapedDollar(content, index);
+
+        if (!isSingleDollar) {
+            output += currentChar;
+            index += 1;
+            continue;
+        }
+
+        const start = index;
+        let end = index + 1;
+        let matched = false;
+        while (end < content.length) {
+            const atSingleDollar =
+                content[end] === '$' &&
+                content[end + 1] !== '$' &&
+                content[end - 1] !== '$' &&
+                !isEscapedDollar(content, end);
+            if (atSingleDollar) {
+                matched = true;
+                break;
+            }
+            end += 1;
+        }
+
+        if (!matched) {
+            output += currentChar;
+            index += 1;
+            continue;
+        }
+
+        const innerRaw = content.slice(start + 1, end);
+        const trimmed = innerRaw.trim();
+        const hasHardParagraphBreak = /\r?\n\s*\r?\n/.test(innerRaw);
+        if (!trimmed || hasHardParagraphBreak || !looksLikeInlineMath(trimmed)) {
+            output += content.slice(start, end + 1);
+            index = end + 1;
+            continue;
+        }
+
+        const normalizedInner = trimmed.replace(/\s*\r?\n\s*/g, ' ');
+        output += `$${normalizedInner}$`;
+        index = end + 1;
+    }
+
+    return output;
+}
+
 // Avoid bold fragmentation when pasting from certain apps
 export function preprocessMarkdown(content: string) {
     // Normalize "$ ... $" to "$...$" for inline formulas.
-    // markdown-it-texmath does not parse inline math with extra spaces next to delimiters.
-    content = content.replace(/(?<!\\)\$(?!\$)([^$\n]*?)(?<!\\)\$(?!\$)/g, (fullMatch, innerRaw: string) => {
-        const trimmed = innerRaw.trim();
-        if (trimmed === innerRaw) return fullMatch;
-        if (!looksLikeInlineMath(trimmed)) return fullMatch;
-        return `$${trimmed}$`;
-    });
+    // markdown-it-texmath does not parse inline math when delimiters keep surrounding spaces/newlines.
+    content = normalizeInlineMathDelimiters(content);
 
     content = content.replace(/^[ ]{0,3}(\*[ ]*\*[ ]*\*[* ]*)[ \t]*$/gm, '***');
     content = content.replace(/^[ ]{0,3}(-[ ]*-[ ]*-[- ]*)[ \t]*$/gm, '---');
