@@ -190,9 +190,38 @@ function buildInlineFormulaStyle(computedStyle: CSSStyleDeclaration): string {
     return inlineStyle;
 }
 
+function findDirectChildByClass(parent: HTMLElement, className: string): HTMLElement | null {
+    const children = Array.from(parent.children);
+    for (const child of children) {
+        if (child instanceof HTMLElement && child.classList.contains(className)) {
+            return child;
+        }
+    }
+    return null;
+}
+
+function pickFormulaVisualNode(formulaNode: HTMLElement): HTMLElement {
+    if (formulaNode.classList.contains('katex-display')) {
+        const directKatex = findDirectChildByClass(formulaNode, 'katex');
+        if (directKatex) {
+            const katexHtml = findDirectChildByClass(directKatex, 'katex-html');
+            if (katexHtml) return katexHtml;
+            return directKatex;
+        }
+    }
+
+    if (formulaNode.classList.contains('katex')) {
+        const katexHtml = findDirectChildByClass(formulaNode, 'katex-html');
+        if (katexHtml) return katexHtml;
+    }
+
+    return formulaNode;
+}
+
 function cloneFormulaWithInlineStyles(formulaNode: HTMLElement): HTMLElement {
-    const clonedRoot = formulaNode.cloneNode(true) as HTMLElement;
-    const sourceNodes = [formulaNode, ...Array.from(formulaNode.querySelectorAll<HTMLElement>('*'))];
+    const visualNode = pickFormulaVisualNode(formulaNode);
+    const clonedRoot = visualNode.cloneNode(true) as HTMLElement;
+    const sourceNodes = [visualNode, ...Array.from(visualNode.querySelectorAll<HTMLElement>('*'))];
     const clonedNodes = [clonedRoot, ...Array.from(clonedRoot.querySelectorAll<HTMLElement>('*'))];
     const pairCount = Math.min(sourceNodes.length, clonedNodes.length);
 
