@@ -240,6 +240,10 @@ export default function App() {
         targetElement: HTMLElement;
         sourcePanel: ScrollPanel;
     } | null>(null);
+    const pendingScrollRatioRef = useRef<Record<ScrollPanel, number | null>>({
+        editor: null,
+        preview: null
+    });
     const scrollSyncRafRef = useRef<number | null>(null);
     const lastManualScrollPanelRef = useRef<ScrollPanel>('editor');
 
@@ -348,6 +352,7 @@ export default function App() {
 
     const resetScrollSyncRuntimeState = useCallback(() => {
         programmaticScrollUntilRef.current = { editor: 0, preview: 0 };
+        pendingScrollRatioRef.current = { editor: null, preview: null };
         clearPendingScrollSync();
     }, [clearPendingScrollSync]);
 
@@ -385,11 +390,18 @@ export default function App() {
 
             const rawRatio = sourceMaxScroll <= 0 ? 0 : pendingSync.sourceElement.scrollTop / sourceMaxScroll;
             const scrollRatio = Math.max(0, Math.min(1, rawRatio));
+            const targetPanel: ScrollPanel = pendingSync.sourcePanel === 'editor' ? 'preview' : 'editor';
+
+            if (targetMaxScroll <= 0) {
+                pendingScrollRatioRef.current[targetPanel] = scrollRatio;
+                return;
+            }
+
             const targetScrollTop = scrollRatio * Math.max(targetMaxScroll, 0);
+            pendingScrollRatioRef.current[targetPanel] = null;
 
             if (Math.abs(pendingSync.targetElement.scrollTop - targetScrollTop) <= SCROLL_SYNC_TOLERANCE_PX) return;
 
-            const targetPanel: ScrollPanel = pendingSync.sourcePanel === 'editor' ? 'preview' : 'editor';
             programmaticScrollUntilRef.current[targetPanel] = Date.now() + SCROLL_SYNC_PROGRAMMATIC_GUARD_MS;
             pendingSync.targetElement.scrollTop = targetScrollTop;
         });
@@ -406,6 +418,38 @@ export default function App() {
         },
         [schedulePendingScrollSync, scrollSyncEnabled]
     );
+
+    const applyDeferredScrollRatio = useCallback((panel: ScrollPanel, element: HTMLElement | null) => {
+        if (!element) return;
+        const pendingRatio = pendingScrollRatioRef.current[panel];
+        if (pendingRatio === null) return;
+
+        const targetMaxScroll = element.scrollHeight - element.clientHeight;
+        if (targetMaxScroll <= 0) return;
+
+        const normalizedRatio = Math.max(0, Math.min(1, pendingRatio));
+        const targetScrollTop = normalizedRatio * targetMaxScroll;
+        pendingScrollRatioRef.current[panel] = null;
+
+        if (Math.abs(element.scrollTop - targetScrollTop) <= SCROLL_SYNC_TOLERANCE_PX) return;
+
+        programmaticScrollUntilRef.current[panel] = Date.now() + SCROLL_SYNC_PROGRAMMATIC_GUARD_MS;
+        element.scrollTop = targetScrollTop;
+    }, []);
+
+    useEffect(() => {
+        if (!scrollSyncEnabled) return;
+
+        let rafId: number | null = null;
+        rafId = window.requestAnimationFrame(() => {
+            applyDeferredScrollRatio('editor', editorScrollRef.current);
+            applyDeferredScrollRatio('preview', getActivePreviewScrollElement());
+        });
+
+        return () => {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
+    }, [activePanel, applyDeferredScrollRatio, getActivePreviewScrollElement, renderedHtml, scrollSyncEnabled]);
 
     useEffect(() => {
         if (!scrollSyncEnabled || typeof ResizeObserver === 'undefined') return;
