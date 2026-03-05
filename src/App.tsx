@@ -98,6 +98,101 @@ function isLegacyDefaultMarkdown(content: string): boolean {
     return matchedSignals >= 2;
 }
 
+function escapeHtml(raw: string): string {
+    return raw
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function collectPrintHeadMarkup(): string {
+    return Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map((node) => node.outerHTML)
+        .join('\n');
+}
+
+function createPrintDocumentHtml(renderedHtml: string, title: string): string {
+    const safeTitle = escapeHtml(title || 'article');
+    const headMarkup = collectPrintHeadMarkup();
+
+    return `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${safeTitle}</title>
+${headMarkup}
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #ffffff !important; }
+body {
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Segoe UI', sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.pdf-export-root {
+    width: min(186mm, calc(100vw - 24px));
+    margin: 16px auto 24px;
+    padding: 0;
+}
+.pdf-export-root img {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+.pdf-export-root pre,
+.pdf-export-root table,
+.pdf-export-root blockquote,
+.pdf-export-root .image-grid {
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+@page { size: A4 portrait; margin: 12mm; }
+@media print {
+    .pdf-export-root {
+        width: auto;
+        margin: 0;
+    }
+}
+</style>
+</head>
+<body>
+<main class="pdf-export-root">
+${renderedHtml}
+</main>
+</body>
+</html>`;
+}
+
+async function waitForPrintAssets(printWindow: Window): Promise<void> {
+    const printDocument = printWindow.document;
+    const stylesheetPromises = Array.from(printDocument.querySelectorAll('link[rel="stylesheet"]')).map((linkNode) => {
+        const link = linkNode as HTMLLinkElement;
+        if (link.sheet) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+            link.addEventListener('load', () => resolve(), { once: true });
+            link.addEventListener('error', () => resolve(), { once: true });
+        });
+    });
+    const imagePromises = Array.from(printDocument.images).map((image) => {
+        if (image.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+            image.addEventListener('load', () => resolve(), { once: true });
+            image.addEventListener('error', () => resolve(), { once: true });
+        });
+    });
+    const fontsReady =
+        'fonts' in printDocument && printDocument.fonts
+            ? printDocument.fonts.ready.then(() => undefined).catch(() => undefined)
+            : Promise.resolve();
+
+    await Promise.all([fontsReady, ...stylesheetPromises, ...imagePromises]);
+}
+
 export default function App() {
     const [themeMode, setThemeMode] = useState<'light' | 'dark'>(
         () => (readStoredString(STORAGE_THEME_MODE_KEY, 'light') === 'dark' ? 'dark' : 'light')
@@ -452,37 +547,41 @@ export default function App() {
 
     const handleExportPdf = useCallback(async () => {
         if (!previewRef.current) return;
+        const filename = createExportFilename(documentTitle, 'pdf');
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('无法打开 PDF 导出窗口，请允许当前站点弹窗后重试。');
+            return;
+        }
+
         try {
-            const element = previewRef.current;
-            const filename = createExportFilename(documentTitle, 'pdf');
-            const { default: html2pdf } = await import('html2pdf.js');
-            const options = {
-                margin: 10,
-                filename,
-                image: { type: 'jpeg' as const, quality: 0.98 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    letterRendering: true,
-                    backgroundColor: document.documentElement.classList.contains('dark') ? '#000000' : '#ffffff'
-                },
-                jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+            const printHtml = createPrintDocumentHtml(renderedHtml, documentTitle);
+            printWindow.document.open();
+            printWindow.document.write(printHtml);
+            printWindow.document.close();
+
+            const cleanup = () => {
+                printWindow.removeEventListener('afterprint', cleanup);
+                window.setTimeout(() => {
+                    if (!printWindow.closed) {
+                        printWindow.close();
+                    }
+                }, 120);
             };
+            printWindow.addEventListener('afterprint', cleanup);
 
-            const clonedElement = element.cloneNode(true) as HTMLElement;
-            const cloneContainer = document.createElement('div');
-            cloneContainer.style.background = document.documentElement.classList.contains('dark') ? '#000000' : '#ffffff';
-            cloneContainer.appendChild(clonedElement);
-            document.body.appendChild(cloneContainer);
-
-            html2pdf().set(options).from(cloneContainer).save().finally(() => {
-                if (cloneContainer.parentNode) cloneContainer.parentNode.removeChild(cloneContainer);
-            });
+            await waitForPrintAssets(printWindow);
+            printWindow.document.title = filename.replace(/\.pdf$/i, '');
+            printWindow.focus();
+            printWindow.print();
         } catch (error) {
             console.error('PDF export failed', error);
+            if (!printWindow.closed) {
+                printWindow.close();
+            }
             alert('导出 PDF 失败，请稍后重试。');
         }
-    }, [documentTitle]);
+    }, [documentTitle, renderedHtml]);
 
     const handleJumpToHeading = useCallback(
         (line: number) => {
