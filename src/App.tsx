@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, PenLine } from 'lucide-react';
 import { md, preprocessMarkdown, applyTheme } from './lib/markdown';
 import { makeWeChatCompatible } from './lib/wechatCompat';
+import { extractZhihuPlainText, makeZhihuCompatibleHtml, makeZhihuImportMarkdown } from './lib/zhihuCompat';
 import { THEMES, type ThemeCustomConfig, type ThemeStyleMode } from './lib/themes';
 import { createWordDocBlob, createWordDocxBlob, createWordHtmlDocument } from './lib/wordExport';
 import { defaultContent } from './defaultContent';
@@ -19,6 +20,7 @@ import EditorPanel from './components/EditorPanel';
 import PreviewPanel from './components/PreviewPanel';
 import WorkspaceMetaBar from './components/WorkspaceMetaBar';
 import InsightsPanel from './components/InsightsPanel';
+import CardModePanel from './components/CardModePanel';
 import {
     computeDocumentStats,
     createExportFilename,
@@ -40,7 +42,7 @@ const STORAGE_SCROLL_SYNC_KEY = 'vibe_101_publish_scroll_sync_v3';
 const STORAGE_INSIGHTS_OPEN_KEY = 'vibe_101_publish_insights_open_v3';
 const STORAGE_LAST_SAVED_AT_KEY = 'vibe_101_publish_last_saved_at_v3';
 const STORAGE_IMAGE_ASSETS_KEY = 'vibe_101_publish_image_assets_v1';
-const CURRENT_TEMPLATE_VERSION = '2026-03-03-default-content-v1';
+const CURRENT_TEMPLATE_VERSION = '2026-03-06-default-content-v2';
 
 const DEFAULT_CUSTOM_THEME: ThemeCustomConfig = {
     enabled: false,
@@ -89,6 +91,10 @@ function isLegacyDefaultMarkdown(content: string): boolean {
     const legacySignals = [
         '# Raphael Publish - 公众号排版大师',
         '# vibe-101-publish - 公众号排版工作台',
+        '# vibe-101-publish - 全场景内容排版与发布工作台',
+        '> 一键排版公众号，同时支持复制到 Word 与导出 DOCX/DOC。',
+        '### 4. 一键复制到公众号',
+        '### 5. Word 办公流转',
         'https://images.unsplash.com/photo-1550745165-9bc0b252726f',
         'https://images.unsplash.com/photo-1555066931-4365d14bab8c',
         '## 新章节标题',
@@ -168,6 +174,41 @@ ${renderedHtml}
 </html>`;
 }
 
+function legacyCopyRichHtml(fragmentHtml: string): boolean {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return false;
+
+    const selection = window.getSelection();
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const container = document.createElement('div');
+    container.setAttribute('contenteditable', 'true');
+    container.setAttribute('aria-hidden', 'true');
+    container.style.position = 'fixed';
+    container.style.left = '-99999px';
+    container.style.top = '0';
+    container.style.opacity = '0';
+    container.style.pointerEvents = 'none';
+    container.innerHTML = fragmentHtml;
+    document.body.appendChild(container);
+
+    const range = document.createRange();
+    range.selectNodeContents(container);
+
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } catch {
+        copied = false;
+    }
+
+    selection?.removeAllRanges();
+    document.body.removeChild(container);
+    activeElement?.focus();
+    return copied;
+}
+
 async function waitForPrintAssets(printWindow: Window): Promise<void> {
     const printDocument = printWindow.document;
     const stylesheetPromises = Array.from(printDocument.querySelectorAll('link[rel="stylesheet"]')).map((linkNode) => {
@@ -211,6 +252,9 @@ export default function App() {
     }));
     const [copied, setCopied] = useState(false);
     const [wordCopied, setWordCopied] = useState(false);
+    const [zhihuCopied, setZhihuCopied] = useState(false);
+    const [isZhihuCopying, setIsZhihuCopying] = useState(false);
+    const [cardModeOpen, setCardModeOpen] = useState(false);
     const [isCopying, setIsCopying] = useState(false);
     const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'pc'>(
         () => parsePreviewDevice(readStoredString(STORAGE_DEVICE_KEY, 'pc'))
@@ -569,6 +613,46 @@ export default function App() {
         }
     }, [renderedHtml]);
 
+    const handleCopyZhihu = useCallback(async () => {
+        const markCopied = () => {
+            setZhihuCopied(true);
+            window.setTimeout(() => setZhihuCopied(false), 2200);
+        };
+
+        setIsZhihuCopying(true);
+        try {
+            const zhihuHtml = await makeZhihuCompatibleHtml(resolvedMarkdownInput);
+            const zhihuText = extractZhihuPlainText(zhihuHtml);
+
+            if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.write === 'function') {
+                const htmlBlob = new Blob([zhihuHtml], { type: 'text/html' });
+                const textBlob = new Blob([zhihuText], { type: 'text/plain' });
+                const clipboardItem = new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob });
+                await navigator.clipboard.write([clipboardItem]);
+                markCopied();
+                alert('已复制知乎富文本，请直接粘贴到知乎编辑器。');
+                return;
+            }
+
+            if (legacyCopyRichHtml(zhihuHtml)) {
+                markCopied();
+                alert('已复制知乎富文本，请直接粘贴到知乎编辑器。');
+                return;
+            }
+
+            const zhihuMarkdown = makeZhihuImportMarkdown(resolvedMarkdownInput);
+            const blob = new Blob([zhihuMarkdown], { type: 'text/markdown;charset=utf-8' });
+            downloadBlobFile(blob, createExportFilename(documentTitle, 'md'));
+            markCopied();
+            alert('当前浏览器不支持知乎富文本复制，已导出知乎 Markdown。请在知乎编辑器点击“导入”。');
+        } catch (err) {
+            console.error('Copy Zhihu failed:', err);
+            alert('复制知乎失败，请检查剪贴板权限后重试。');
+        } finally {
+            setIsZhihuCopying(false);
+        }
+    }, [resolvedMarkdownInput, documentTitle, downloadBlobFile]);
+
     const handleExportWordDoc = useCallback(() => {
         try {
             const blob = createWordDocBlob(renderedHtml);
@@ -675,6 +759,11 @@ export default function App() {
                 void handleCopyWord();
                 return;
             }
+            if (event.shiftKey && key === 'z') {
+                event.preventDefault();
+                void handleCopyZhihu();
+                return;
+            }
             if (event.shiftKey && key === 'o') {
                 event.preventDefault();
                 handleExportWordDocx();
@@ -708,7 +797,7 @@ export default function App() {
 
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [handleCopy, handleCopyWord, handleExportHtml, handleExportPdf, handleExportWordDoc, handleExportWordDocx]);
+    }, [handleCopy, handleCopyWord, handleCopyZhihu, handleExportHtml, handleExportPdf, handleExportWordDoc, handleExportWordDocx]);
 
     const deviceWidthClass = useMemo(() => {
         if (previewDevice === 'mobile') return 'w-[520px] max-w-full';
@@ -786,9 +875,14 @@ export default function App() {
                     onExportWordDocx={handleExportWordDocx}
                     onCopyWord={handleCopyWord}
                     wordCopied={wordCopied}
+                    onCopyZhihu={handleCopyZhihu}
+                    zhihuCopied={zhihuCopied}
+                    isZhihuCopying={isZhihuCopying}
                     onCopy={handleCopy}
                     copied={copied}
                     isCopying={isCopying}
+                    onToggleCardMode={() => setCardModeOpen((prev) => !prev)}
+                    cardModeOpen={cardModeOpen}
                     scrollSyncEnabled={scrollSyncEnabled}
                     onToggleScrollSync={() => setScrollSyncEnabled((prev) => !prev)}
                     insightsOpen={insightsOpen}
@@ -812,9 +906,14 @@ export default function App() {
                     onExportWordDocx={handleExportWordDocx}
                     onCopyWord={handleCopyWord}
                     wordCopied={wordCopied}
+                    onCopyZhihu={handleCopyZhihu}
+                    zhihuCopied={zhihuCopied}
+                    isZhihuCopying={isZhihuCopying}
                     onCopy={handleCopy}
                     copied={copied}
                     isCopying={isCopying}
+                    onToggleCardMode={() => setCardModeOpen((prev) => !prev)}
+                    cardModeOpen={cardModeOpen}
                     scrollSyncEnabled={scrollSyncEnabled}
                     onToggleScrollSync={() => setScrollSyncEnabled((prev) => !prev)}
                     insightsOpen={insightsOpen}
@@ -895,6 +994,16 @@ export default function App() {
                         />
                     </div>
                 </>
+            )}
+
+            {cardModeOpen && (
+                <CardModePanel
+                    markdownInput={markdownInput}
+                    activeTheme={activeTheme}
+                    customTheme={customTheme.enabled ? customTheme : undefined}
+                    imageAssets={imageAssets}
+                    onClose={() => setCardModeOpen(false)}
+                />
             )}
         </div>
     );

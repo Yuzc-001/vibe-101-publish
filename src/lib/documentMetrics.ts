@@ -85,7 +85,7 @@ function sanitizeFileSegment(raw: string): string {
         .slice(0, 48);
 }
 
-export function createExportFilename(title: string, ext: 'html' | 'pdf' | 'doc' | 'docx'): string {
+export function createExportFilename(title: string, ext: 'html' | 'pdf' | 'doc' | 'docx' | 'md'): string {
     const safeTitle = sanitizeFileSegment(title) || 'article';
     const timestamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
     return `vibe-101-publish_${safeTitle}_${timestamp}.${ext}`;

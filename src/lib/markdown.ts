@@ -19,7 +19,7 @@ import xml from 'highlight.js/lib/languages/xml';
 import yaml from 'highlight.js/lib/languages/yaml';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
-import { THEMES, type ThemeCustomConfig } from './themes';
+import { ALL_THEMES, type ThemeCustomConfig } from './themes';
 import { resolveThemeStyles } from './themes/customize';
 
 hljs.registerLanguage('bash', bash);
@@ -82,6 +82,10 @@ function looksLikeInlineMath(content: string): boolean {
     if (/^[+-]?\d+(?:[.,]\d+)?(?:[%a-zA-Z]{0,4})?$/.test(content)) return false;
 
     return /\\|[_^{}]|[=+\-*/<>]/.test(content);
+}
+
+function splitByCodeFences(markdown: string): string[] {
+    return markdown.split(/(```[\s\S]*?```)/g);
 }
 
 function normalizeInlineMathDelimiters(content: string): string {
@@ -150,6 +154,12 @@ function normalizeInlineMathDelimiters(content: string): string {
     return output;
 }
 
+function normalizeInlineMathDelimitersOutsideCode(content: string): string {
+    return splitByCodeFences(content)
+        .map((segment) => (segment.startsWith('```') ? segment : normalizeInlineMathDelimiters(segment)))
+        .join('');
+}
+
 function normalizeEscapedLatexCommands(latexRaw: string): string {
     return String(latexRaw || '')
         .replace(/\\\\(?=[A-Za-z])/g, '\\')
@@ -169,6 +179,107 @@ function normalizeBlockMathDelimiters(content: string): string {
         const inner = normalizeEscapedLatexCommands(String(innerRaw || ''));
         return `$$${inner}$$`;
     });
+}
+
+function parseTableRow(raw: string): string[] {
+    let line = raw.trim();
+    if (line.startsWith('|')) line = line.slice(1);
+    if (line.endsWith('|')) line = line.slice(0, -1);
+    return line.split('|').map((cell) => cell.trim());
+}
+
+function isTableSeparator(raw: string): boolean {
+    const line = raw.trim();
+    if (!line.includes('|')) return false;
+    const normalized = line.replace(/\|/g, '').replace(/:/g, '').replace(/-/g, '').replace(/\s/g, '');
+    return normalized.length === 0 && line.includes('-');
+}
+
+function parseTableAlignments(raw: string, columnCount: number): Array<'left' | 'center' | 'right' | null> {
+    const cells = parseTableRow(raw);
+    const alignments = cells.map((cell) => {
+        const trimmed = cell.trim();
+        const startsWithColon = trimmed.startsWith(':');
+        const endsWithColon = trimmed.endsWith(':');
+        if (startsWithColon && endsWithColon) return 'center';
+        if (endsWithColon) return 'right';
+        if (startsWithColon) return 'left';
+        return null;
+    });
+
+    while (alignments.length < columnCount) {
+        alignments.push(null);
+    }
+
+    return alignments.slice(0, columnCount);
+}
+
+function renderTableCellInline(cell: string): string {
+    return md.renderInline(cell.trim());
+}
+
+function buildHtmlTable(header: string[], alignments: Array<'left' | 'center' | 'right' | null>, rows: string[][]): string {
+    const head = `<thead><tr>${header
+        .map((cell, index) => {
+            const align = alignments[index];
+            const alignStyle = align ? ` style="text-align:${align}"` : '';
+            return `<th${alignStyle}>${renderTableCellInline(cell)}</th>`;
+        })
+        .join('')}</tr></thead>`;
+
+    const body = `<tbody>${rows
+        .map((row) => {
+            const cells = header.map((_cell, index) => {
+                const align = alignments[index];
+                const alignStyle = align ? ` style="text-align:${align}"` : '';
+                return `<td${alignStyle}>${renderTableCellInline(row[index] ?? '')}</td>`;
+            });
+            return `<tr>${cells.join('')}</tr>`;
+        })
+        .join('')}</tbody>`;
+
+    return `<table>\n${head}\n${body}\n</table>`;
+}
+
+function convertMarkdownTables(content: string): string {
+    const lines = content.split('\n');
+    const output: string[] = [];
+
+    let index = 0;
+    while (index < lines.length) {
+        const line = lines[index];
+        const next = lines[index + 1] ?? '';
+        const looksLikeHeader = line.includes('|');
+        const looksLikeSeparator = isTableSeparator(next);
+
+        if (!looksLikeHeader || !looksLikeSeparator) {
+            output.push(line);
+            index += 1;
+            continue;
+        }
+
+        const header = parseTableRow(line);
+        const alignments = parseTableAlignments(next, header.length);
+        const rows: string[][] = [];
+        index += 2;
+
+        while (index < lines.length) {
+            const rowLine = lines[index];
+            if (!rowLine.trim() || !rowLine.includes('|')) break;
+            rows.push(parseTableRow(rowLine));
+            index += 1;
+        }
+
+        output.push(buildHtmlTable(header, alignments, rows));
+    }
+
+    return output.join('\n');
+}
+
+function convertMarkdownTablesOutsideCode(content: string): string {
+    return splitByCodeFences(content)
+        .map((segment) => (segment.startsWith('```') ? segment : convertMarkdownTables(segment)))
+        .join('');
 }
 
 function repairDetachedImageTitles(content: string): string {
@@ -270,7 +381,8 @@ export function preprocessMarkdown(content: string) {
 
     // Normalize "$ ... $" to "$...$" for inline formulas.
     // markdown-it-texmath does not parse inline math when delimiters keep surrounding spaces/newlines.
-    content = normalizeInlineMathDelimiters(content);
+    content = normalizeInlineMathDelimitersOutsideCode(content);
+    content = convertMarkdownTablesOutsideCode(content);
 
     content = content.replace(/^[ ]{0,3}(\*[ ]*\*[ ]*\*[* ]*)[ \t]*$/gm, '***');
     content = content.replace(/^[ ]{0,3}(-[ ]*-[ ]*-[- ]*)[ \t]*$/gm, '---');
@@ -283,7 +395,7 @@ export function preprocessMarkdown(content: string) {
 }
 
 export function applyTheme(html: string, themeId: string, customTheme?: ThemeCustomConfig) {
-    const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
+    const theme = ALL_THEMES.find(t => t.id === themeId) || ALL_THEMES[0];
     const style = resolveThemeStyles(theme, customTheme);
 
     const parser = new DOMParser();

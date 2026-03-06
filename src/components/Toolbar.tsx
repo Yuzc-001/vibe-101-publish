@@ -4,9 +4,11 @@ import {
     Copy,
     Download,
     FileText,
+    Image as ImageIcon,
     Link2,
     Loader2,
     Monitor,
+    MoreHorizontal,
     PanelRightClose,
     PanelRightOpen,
     Smartphone,
@@ -25,9 +27,14 @@ interface ToolbarProps {
     onExportWordDocx: () => void;
     onCopyWord: () => void;
     wordCopied: boolean;
+    onCopyZhihu: () => void;
+    zhihuCopied: boolean;
+    isZhihuCopying: boolean;
     onCopy: () => void;
     copied: boolean;
     isCopying: boolean;
+    onToggleCardMode: () => void;
+    cardModeOpen: boolean;
     scrollSyncEnabled: boolean;
     onToggleScrollSync: () => void;
     insightsOpen: boolean;
@@ -65,29 +72,38 @@ export default function Toolbar({
     onExportWordDocx,
     onCopyWord,
     wordCopied,
+    onCopyZhihu,
+    zhihuCopied,
+    isZhihuCopying,
     onCopy,
     copied,
     isCopying,
+    onToggleCardMode,
+    cardModeOpen,
     scrollSyncEnabled,
     onToggleScrollSync,
     insightsOpen,
     onToggleInsights
 }: ToolbarProps) {
-    const [isWordExportMenuOpen, setIsWordExportMenuOpen] = useState(false);
-    const wordExportButtonRef = useRef<HTMLButtonElement>(null);
-    const wordExportMenuRef = useRef<HTMLDivElement>(null);
+    const [openMenu, setOpenMenu] = useState<'export' | 'more' | null>(null);
+    const exportButtonRef = useRef<HTMLButtonElement>(null);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
+    const moreButtonRef = useRef<HTMLButtonElement>(null);
+    const moreMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!isWordExportMenuOpen) return;
+        if (!openMenu) return;
         const onMouseDown = (event: MouseEvent) => {
             const target = event.target as Node;
-            if (wordExportButtonRef.current?.contains(target)) return;
-            if (wordExportMenuRef.current?.contains(target)) return;
-            setIsWordExportMenuOpen(false);
+            if (exportButtonRef.current?.contains(target)) return;
+            if (exportMenuRef.current?.contains(target)) return;
+            if (moreButtonRef.current?.contains(target)) return;
+            if (moreMenuRef.current?.contains(target)) return;
+            setOpenMenu(null);
         };
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                setIsWordExportMenuOpen(false);
+                setOpenMenu(null);
             }
         };
 
@@ -97,9 +113,16 @@ export default function Toolbar({
             window.removeEventListener('mousedown', onMouseDown);
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [isWordExportMenuOpen]);
+    }, [openMenu]);
 
-    const wordMenuRect = wordExportButtonRef.current?.getBoundingClientRect();
+    const exportMenuRect = exportButtonRef.current?.getBoundingClientRect();
+    const moreMenuRect = moreButtonRef.current?.getBoundingClientRect();
+
+    const getMenuLeft = (rect: DOMRect | undefined, width: number) => {
+        if (!rect) return 12;
+        if (typeof window === 'undefined') return Math.max(12, rect.right - width);
+        return Math.max(12, Math.min(window.innerWidth - width - 12, rect.right - width));
+    };
 
     return (
         <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 min-w-0">
@@ -128,7 +151,7 @@ export default function Toolbar({
             </div>
 
             <div className="ml-auto flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar">
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="hidden lg:flex items-center gap-2 shrink-0">
                     <motion.button
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
@@ -137,8 +160,18 @@ export default function Toolbar({
                         title={insightsOpen ? '隐藏排版信息面板' : '显示排版信息面板'}
                     >
                         {insightsOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
-                        <span className="hidden xl:inline">{insightsOpen ? '隐藏信息' : '显示信息'}</span>
-                        <span className="xl:hidden">{insightsOpen ? '隐藏' : '信息'}</span>
+                        <span>排版信息</span>
+                    </motion.button>
+
+                    <motion.button
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onToggleCardMode}
+                        className={`ui-tool-btn ${cardModeOpen ? 'ui-tool-btn-active' : ''}`}
+                        title="打开卡片模式"
+                    >
+                        <ImageIcon size={14} />
+                        <span>卡片模式</span>
                     </motion.button>
 
                     <motion.button
@@ -149,8 +182,7 @@ export default function Toolbar({
                         title={scrollSyncEnabled ? '关闭滚动同步' : '开启滚动同步'}
                     >
                         {scrollSyncEnabled ? <Link2 size={14} /> : <Unlink2 size={14} />}
-                        <span className="hidden xl:inline">{scrollSyncEnabled ? '同步滚动' : '独立滚动'}</span>
-                        <span className="xl:hidden">{scrollSyncEnabled ? '同步' : '独立'}</span>
+                        <span>滚动同步</span>
                     </motion.button>
                 </div>
 
@@ -158,39 +190,16 @@ export default function Toolbar({
 
                 <div className="flex items-center gap-2 shrink-0">
                     <motion.button
+                        ref={exportButtonRef}
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={onExportPdf}
-                        className="ui-tool-btn hidden sm:flex"
+                        onClick={() => setOpenMenu((previous) => (previous === 'export' ? null : 'export'))}
+                        className={`ui-tool-btn ${openMenu === 'export' ? 'ui-tool-btn-active' : ''}`}
+                        title="导出文件"
                     >
                         <Download size={14} />
-                        <span className="hidden xl:inline">导出 PDF</span>
-                        <span className="xl:hidden">PDF</span>
-                    </motion.button>
-
-                    <motion.button
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={onExportHtml}
-                        className="ui-tool-btn hidden lg:flex"
-                    >
-                        <Download size={14} />
-                        <span className="hidden xl:inline">导出 HTML</span>
-                        <span className="xl:hidden">HTML</span>
-                    </motion.button>
-
-                    <motion.button
-                        ref={wordExportButtonRef}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setIsWordExportMenuOpen((previous) => !previous)}
-                        className={`ui-tool-btn ${isWordExportMenuOpen ? 'ui-tool-btn-active' : ''}`}
-                        title="导出 Word（选择 DOCX 或 DOC）"
-                    >
-                        <FileText size={14} />
-                        <span className="hidden xl:inline">导出 Word</span>
-                        <span className="xl:hidden">Word</span>
-                        <ChevronDown size={12} className={`transition-transform ${isWordExportMenuOpen ? 'rotate-180' : ''}`} />
+                        <span>导出</span>
+                        <ChevronDown size={12} className={`transition-transform ${openMenu === 'export' ? 'rotate-180' : ''}`} />
                     </motion.button>
                 </div>
 
@@ -205,10 +214,39 @@ export default function Toolbar({
                         title="复制到 Word"
                     >
                         <Copy size={14} />
-                        <span className="hidden xl:inline">{wordCopied ? '已复制到 Word' : '复制 Word'}</span>
-                        <span className="xl:hidden">{wordCopied ? '已复制' : 'Word'}</span>
+                        <span>{wordCopied ? '已复制到 Word' : '复制到 Word'}</span>
+                    </motion.button>
+
+                    <motion.button
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={onCopyZhihu}
+                        disabled={isZhihuCopying}
+                        className={
+                            zhihuCopied
+                                ? 'ui-tool-btn ui-tool-btn-active'
+                                : isZhihuCopying
+                                  ? 'ui-tool-btn opacity-85 cursor-not-allowed'
+                                  : 'ui-tool-btn'
+                        }
+                        title="复制到知乎（Ctrl+Shift+Z）"
+                    >
+                        {isZhihuCopying ? <Loader2 className="animate-spin" size={14} /> : <Copy size={14} />}
+                        <span>{zhihuCopied ? '已复制到知乎' : isZhihuCopying ? '正在适配知乎...' : '复制到知乎'}</span>
                     </motion.button>
                 </div>
+
+                <motion.button
+                    ref={moreButtonRef}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setOpenMenu((previous) => (previous === 'more' ? null : 'more'))}
+                    className={`ui-tool-btn lg:hidden ${openMenu === 'more' ? 'ui-tool-btn-active' : ''}`}
+                    title="更多设置"
+                >
+                    <MoreHorizontal size={14} />
+                    <span>更多</span>
+                </motion.button>
 
                 <motion.button
                     whileHover={{ scale: 1.01 }}
@@ -233,21 +271,41 @@ export default function Toolbar({
                 </motion.button>
             </div>
 
-            {isWordExportMenuOpen && wordMenuRect && (
+            {openMenu === 'export' && exportMenuRect && (
                 <div
-                    ref={wordExportMenuRef}
-                    className="fixed z-[140] min-w-[172px] rounded-[14px] border border-[#00000012] dark:border-[#ffffff18] bg-white dark:bg-[#1d1d21] shadow-apple-lg p-1.5"
+                    ref={exportMenuRef}
+                    className="fixed z-[140] min-w-[188px] rounded-[14px] border border-[#00000012] dark:border-[#ffffff18] bg-white dark:bg-[#1d1d21] shadow-apple-lg p-1.5"
                     style={{
-                        top: wordMenuRect.bottom + 8,
-                        left: Math.max(12, wordMenuRect.right - 172)
+                        top: exportMenuRect.bottom + 8,
+                        left: getMenuLeft(exportMenuRect, 188)
                     }}
                 >
                     <button
                         onClick={() => {
-                            onExportWordDocx();
-                            setIsWordExportMenuOpen(false);
+                            onExportPdf();
+                            setOpenMenu(null);
                         }}
                         className="w-full ui-tool-btn !justify-start !h-[32px]"
+                    >
+                        <Download size={13} />
+                        导出 PDF
+                    </button>
+                    <button
+                        onClick={() => {
+                            onExportHtml();
+                            setOpenMenu(null);
+                        }}
+                        className="w-full ui-tool-btn !justify-start !h-[32px] mt-1"
+                    >
+                        <Download size={13} />
+                        导出 HTML
+                    </button>
+                    <button
+                        onClick={() => {
+                            onExportWordDocx();
+                            setOpenMenu(null);
+                        }}
+                        className="w-full ui-tool-btn !justify-start !h-[32px] mt-1"
                     >
                         <FileText size={13} />
                         导出 .docx（推荐）
@@ -255,12 +313,89 @@ export default function Toolbar({
                     <button
                         onClick={() => {
                             onExportWordDoc();
-                            setIsWordExportMenuOpen(false);
+                            setOpenMenu(null);
                         }}
                         className="w-full ui-tool-btn !justify-start !h-[32px] mt-1"
                     >
                         <Download size={13} />
                         导出 .doc
+                    </button>
+                </div>
+            )}
+
+            {openMenu === 'more' && moreMenuRect && (
+                <div
+                    ref={moreMenuRef}
+                    className="fixed z-[140] min-w-[220px] rounded-[14px] border border-[#00000012] dark:border-[#ffffff18] bg-white dark:bg-[#1d1d21] shadow-apple-lg p-1.5"
+                    style={{
+                        top: moreMenuRect.bottom + 8,
+                        left: getMenuLeft(moreMenuRect, 220)
+                    }}
+                >
+                    <div className="px-2 py-1 ui-caption">预览设备</div>
+                    <button
+                        onClick={() => {
+                            onDeviceChange('mobile');
+                            setOpenMenu(null);
+                        }}
+                        className={`w-full ui-tool-btn !justify-start !h-[32px] ${previewDevice === 'mobile' ? 'ui-tool-btn-active' : ''}`}
+                    >
+                        <Smartphone size={13} />
+                        手机预览
+                    </button>
+                    <button
+                        onClick={() => {
+                            onDeviceChange('tablet');
+                            setOpenMenu(null);
+                        }}
+                        className={`w-full ui-tool-btn !justify-start !h-[32px] mt-1 ${previewDevice === 'tablet' ? 'ui-tool-btn-active' : ''}`}
+                    >
+                        <Tablet size={13} />
+                        平板预览
+                    </button>
+                    <button
+                        onClick={() => {
+                            onDeviceChange('pc');
+                            setOpenMenu(null);
+                        }}
+                        className={`w-full ui-tool-btn !justify-start !h-[32px] mt-1 ${previewDevice === 'pc' ? 'ui-tool-btn-active' : ''}`}
+                    >
+                        <Monitor size={13} />
+                        桌面预览
+                    </button>
+
+                    <div className="mx-1 my-2 h-px bg-[#00000010] dark:bg-[#ffffff10]" />
+                    <div className="px-2 py-1 ui-caption">工作区</div>
+
+                    <button
+                        onClick={() => {
+                            onToggleInsights();
+                            setOpenMenu(null);
+                        }}
+                        className={`w-full ui-tool-btn !justify-start !h-[32px] ${insightsOpen ? 'ui-tool-btn-active' : ''}`}
+                    >
+                        {insightsOpen ? <PanelRightClose size={13} /> : <PanelRightOpen size={13} />}
+                        排版信息
+                    </button>
+                    <button
+                        onClick={() => {
+                            onToggleScrollSync();
+                            setOpenMenu(null);
+                        }}
+                        className={`w-full ui-tool-btn !justify-start !h-[32px] mt-1 ${scrollSyncEnabled ? 'ui-tool-btn-active' : ''}`}
+                    >
+                        {scrollSyncEnabled ? <Link2 size={13} /> : <Unlink2 size={13} />}
+                        滚动同步
+                    </button>
+                    <button
+                        onClick={() => {
+                            onToggleCardMode();
+                            setOpenMenu(null);
+                        }}
+                        className={`w-full ui-tool-btn !justify-start !h-[32px] mt-1 ${cardModeOpen ? 'ui-tool-btn-active' : ''}`}
+                    >
+                        <ImageIcon size={13} />
+                        卡片模式
                     </button>
                 </div>
             )}

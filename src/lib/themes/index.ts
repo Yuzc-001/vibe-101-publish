@@ -2,9 +2,13 @@ import type { Theme } from './types';
 import { classicThemes } from './classic';
 import { modernThemes } from './modern';
 import { extraThemes } from './extra';
+import { socialThemes } from './social';
 
 export type { Theme, ThemeCustomConfig, ThemeStyleMode } from './types';
 export const THEMES: Theme[] = [...classicThemes, ...modernThemes, ...extraThemes];
+export const SOCIAL_THEMES: Theme[] = socialThemes;
+export const ALL_THEMES: Theme[] = [...THEMES, ...SOCIAL_THEMES];
+export const SOCIAL_THEME_IDS = SOCIAL_THEMES.map((theme) => theme.id) as readonly string[];
 
 export interface ThemeGroup {
   label: string;

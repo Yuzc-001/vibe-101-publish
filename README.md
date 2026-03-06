@@ -5,7 +5,7 @@
 <h1 align="center">vibe-101-publish</h1>
 
 <p align="center">
-  面向公众号、知识库、博客与办公文档的 Markdown 排版与发布工作台
+  面向公众号、知乎、Word 与社交卡片的 Markdown 排版与发布工作台
 </p>
 
 <p align="center">
@@ -28,132 +28,145 @@
   ·
   <a href="https://github.com/Yuzc-001/vibe-101-publish">GitHub 仓库</a>
   ·
-  <a href="https://github.com/Yuzc-001">GitHub 主页</a>
+  <a href="./PROMO.md">宣传文案</a>
   ·
-  <a href="mailto:zxyu24@outlook.com">交流合作</a>
+  <a href="./docs/implementation-plan.md">实施进展</a>
 </p>
 
 ---
 
 ## 一句话定位
 
-`vibe-101-publish` 是一个面向内容创作者与内容团队的排版与发布工作台。  
-它不是“只在编辑区好看”的工具，而是追求“发布后也稳定”的完整链路产品。
+`vibe-101-publish` 不是“只在编辑区里好看”的 Markdown 工具。  
+它已经进化成一个围绕真实发布链路设计的工作台，让一份稿子可以更稳地去公众号、知乎、Word 和社交平台。
 
-## 快速入口
+## 现在它能做什么
 
-- 在线预览：<https://yuzc-001.github.io/vibe-101-publish/>
-- GitHub 仓库：<https://github.com/Yuzc-001/vibe-101-publish>
-- GitHub 主页：<https://github.com/Yuzc-001>
+### 1. 写作与排版
 
-提示：
-- 若首次访问预览出现空白，请强制刷新 `Ctrl + F5`。
+- 富文本智能粘贴为干净 Markdown
+- 多套主题快速切换，并支持自定义主色与风格微调
+- 手机 / 平板 / 桌面三种预览视图
+- 编辑区与预览区滚动同步
+- 排版信息面板帮助检查标题、字数、阅读时长与图片数量
 
-## 我们在解决的核心问题
+### 2. 发布与复制
 
-很多工具卡在发布最后一公里：
+- `复制到公众号`：针对公众号链路做兼容处理与图片内联
+- `复制到知乎`：走知乎专用剪贴板 HTML，兼顾公式、代码块、表格和链接
+- `复制到 Word`：富文本粘贴后仍可继续编辑
 
-- 粘贴到目标平台后样式丢失、字体错乱。
-- 图片、表格、图文混排结构变形。
-- LaTeX 公式在不同平台兼容性差。
-- 编辑区效果与真实发布效果不一致。
+### 3. 导出与交付
 
-我们的策略是：把“发布稳定性”放在第一优先级，而不是把它当附加功能。
+- 导出 `PDF`
+- 导出 `HTML`
+- 导出 `Word .docx`
+- 导出 `Word .doc`
 
-## 核心价值
+### 4. 卡片工作台
 
-| 维度 | 价值 |
-| --- | --- |
-| 发布一致性 | 编辑效果尽量贴近最终发布结果 |
-| 跨平台兼容性 | 兼顾公众号、知识库、博客与办公文档链路 |
-| 表达质量 | 主题、排版节奏、代码、公式可控 |
-| 工程可持续 | 功能可验证、可复用、可持续迭代 |
+- 基于 `---` 将长文拆成多张卡片
+- 支持 `公众号长图` 与 `社交卡片` 两种模式
+- 社交卡片为 `440 x 586` 固定比例，更适合小红书 / 朋友圈 / 图文封面
+- 支持封面卡、尾页卡、页码、当前卡预览、单张导出、全部导出和 ZIP 打包
+- 社交卡片提供 6 套专属主题，强调气质、可读性和传播感
 
-## 能力亮点
+## 这次进化的重点
 
-### 1. 发布链路优化
+### 知乎复制链路重写
 
-- 复制前进行结构修正与样式补偿。
-- 外链图片处理，降低粘贴失真风险。
-- 公式链路优化，兼顾渲染质量与平台兼容。
+之前很多工具会把预览 DOM 直接塞进剪贴板，知乎往往并不会按预期识别。  
+现在这里改成了 `Markdown -> 知乎专用 HTML` 的独立链路：
 
-### 2. 创作与排版效率
+- 行内公式和块级公式转成知乎可识别结构
+- 表格单元格中的公式、代码、链接单独处理
+- 失败时提供 Markdown 导入兜底，而不是直接报错
 
-- 富文本智能粘贴为干净 Markdown。
-- 主题系统支持快速切换与个性化微调。
-- 支持手机 / 平板 / 桌面多端预览。
-- 滚动同步与文档信息面板提升编辑效率。
+### 卡片模式升级为卡片工作台
 
-### 3. 多格式交付能力
+卡片功能已经不再是“把内容截图成 PNG”这么简单，而是完整的导出工作台：
 
-- 一键导出 HTML、PDF、DOC、DOCX。
-- 支持发布到公众号、知识库、博客与办公文档场景。
+- 先决定发布方式
+- 再决定封面、尾页、页码和主题
+- 最后逐张确认这张卡值不值得发出去
 
-## 适用人群
+### 细节稳定性提升
 
-- 技术写作者与长文作者。
-- 内容团队与运营团队。
-- 高频输出的知识型创作者。
-- 对发布品质有明确要求的产品/品牌团队。
+- 表格渲染链修复，预览与复制结果更一致
+- 图片坏链清理与空容器回收，避免卡片里出现大白块
+- 长内容在社交卡片模式下会自动缩放，并提示“建议拆卡”
+- 工具栏文案、分组与主次关系做了更符合习惯的整理
 
-## 为什么它是“产品”而不是“Demo”
+## 适合谁
 
-- 有明确场景：内容发布与分发。
-- 有明确指标：稳定性、可读性、交付效率。
-- 有明确路径：输入 -> 排版 -> 预览 -> 复制/导出 -> 发布。
-- 有持续演进：围绕真实痛点做工程化迭代。
+- 高频写公众号、专栏、知识文章的人
+- 需要把一份内容分发到多个平台的内容团队
+- 既关心排版，也关心“粘贴之后别坏掉”的创作者
+- 需要把长文切成社交图片卡片的品牌与运营团队
+
+## 典型使用路径
+
+1. 粘贴或写入 Markdown 内容
+2. 选择主题并检查多端预览
+3. 视需要开启卡片工作台，拆成适合发布的图片
+4. 根据目标渠道执行：
+   - 公众号：`复制到公众号`
+   - 知乎：`复制到知乎`
+   - Word：`复制到 Word` 或导出 Word
+   - 社交平台：导出单张 PNG、全部 PNG 或 ZIP
 
 ## 快速开始
 
 ```bash
-corepack enable
 pnpm install
 pnpm dev
 ```
 
-## 构建命令
+## 构建
 
 ```bash
 pnpm build
+pnpm lint
 ```
 
-## 部署说明（GitHub Pages）
+## 文档
 
-项目使用 `.github/workflows/deploy.yml` 自动部署。
+- 产品宣传文案：[`PROMO.md`](./PROMO.md)
+- 当前实施进展：[`docs/implementation-plan.md`](./docs/implementation-plan.md)
+- 第三方声明：[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)
+- 资源说明：[`ASSET_NOTICE.md`](./ASSET_NOTICE.md)
 
-1. 推送到 `main` 分支后自动触发构建。
-2. 仓库设置中将 `Settings -> Pages -> Source` 设为 `GitHub Actions`。
+## 最近进展
 
-## 最近进展（持续更新）
+- 知乎复制链路重写，公式 / 代码 / 表格兼容明显提升
+- Markdown 表格主渲染链修复，预览与复制表现更一致
+- 卡片工作台支持公众号长图与社交卡片双模式
+- 新增 6 套社交卡片主题、PNG 导出与 ZIP 打包
+- 卡片工作台布局与预览交互持续优化
 
-- 同步滚动稳定性修复（移动端/平板端）。
-- LaTeX 渲染与发布兼容链路优化。
-- data URI 图片资产化与源码区缩略预览。
-- GitHub Pages 路径修复，解决线上空白页问题。
-- 预览页顶栏新增 GitHub 主页与仓库入口。
+## 部署说明
 
-## Star History
+项目使用 GitHub Actions 自动构建并发布到 GitHub Pages。
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Yuzc-001/vibe-101-publish&type=Date)](https://www.star-history.com/#Yuzc-001/vibe-101-publish&Date)
+1. 推送到 `main` 分支后触发构建
+2. 仓库 `Settings -> Pages -> Source` 选择 `GitHub Actions`
 
 ## 协作与沟通
 
+- Issues：<https://github.com/Yuzc-001/vibe-101-publish/issues>
 - 邮箱：`zxyu24@outlook.com`
-- 宣传文案：见 [PROMO.md](./PROMO.md)
-- 问题反馈：[Issues](https://github.com/Yuzc-001/vibe-101-publish/issues)
-
-## 路线图（留白）
-
-路线图会根据真实使用反馈持续调整，不在 README 里做过度承诺。  
-如果你有想优先推进的方向，欢迎直接提 Issue 或邮件沟通。
 
 ## 致谢
 
-本项目是围绕内容排版与发布工作流的独立新创作。  
-演进过程中参考并继承了开源项目 [raphael-publish](https://github.com/liuxiaopai-ai/raphael-publish) 的基础能力，在此致谢。
+本项目围绕内容排版与发布工作流独立演进。  
+早期能力参考并继承了开源项目 [raphael-publish](https://github.com/liuxiaopai-ai/raphael-publish) 的部分基础能力，在此致谢。
 
 ## 许可与合规
 
 - License: [MIT](./LICENSE)
 - Third-party notices: [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
 - Asset notice: [ASSET_NOTICE.md](./ASSET_NOTICE.md)
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Yuzc-001/vibe-101-publish&type=Date)](https://www.star-history.com/#Yuzc-001/vibe-101-publish&Date)
