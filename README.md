@@ -122,15 +122,6 @@ pnpm install
 pnpm dev
 ```
 
-## Chrome 插件（V1）
-
-仓库内新增 `extension/` 目录，提供浏览器插件入口：
-- 右键发送选中文本到工作台
-- Popup 抓取当前页内容并发送到工作台
-- 支持本地 / 线上工作台切换
-
-加载方式见：`extension/README.md`
-
 ## 构建
 
 ```bash
