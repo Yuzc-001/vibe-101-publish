@@ -31,6 +31,7 @@ import {
 const isBrowser = typeof window !== 'undefined';
 
 const STORAGE_MARKDOWN_KEY = 'vibe_101_publish_markdown_v3';
+const EXTENSION_PAYLOAD_KEY = 'vibe_publish_extension_payload';
 const STORAGE_TEMPLATE_VERSION_KEY = 'vibe_101_publish_template_version_v1';
 const STORAGE_THEME_MODE_KEY = 'vibe_101_publish_theme_mode_v3';
 const STORAGE_ACTIVE_THEME_KEY = 'vibe_101_publish_active_theme_v3';
@@ -335,6 +336,51 @@ export default function App() {
         }
         localStorage.setItem(STORAGE_TEMPLATE_VERSION_KEY, CURRENT_TEMPLATE_VERSION);
     }, [markdownInput]);
+
+    useEffect(() => {
+        if (!isBrowser) return;
+
+        const importPayload = (raw: string | null) => {
+            if (!raw) return;
+            try {
+                const payload = JSON.parse(raw) as {
+                    title?: string;
+                    url?: string;
+                    content?: string;
+                    mode?: string;
+                };
+                const imported = [
+                    payload.title ? `# ${payload.title}` : '',
+                    payload.url ? `> 来源：${payload.url}` : '',
+                    payload.mode ? `> 导入方式：${payload.mode}` : '',
+                    '',
+                    payload.content || ''
+                ]
+                    .filter(Boolean)
+                    .join('\n');
+
+                if (imported.trim()) {
+                    setMarkdownInput(imported);
+                    localStorage.setItem(STORAGE_MARKDOWN_KEY, imported);
+                }
+            } catch {
+                // ignore malformed payload
+            } finally {
+                localStorage.removeItem(EXTENSION_PAYLOAD_KEY);
+            }
+        };
+
+        importPayload(localStorage.getItem(EXTENSION_PAYLOAD_KEY));
+
+        const onStorage = (event: StorageEvent) => {
+            if (event.key === EXTENSION_PAYLOAD_KEY) {
+                importPayload(event.newValue);
+            }
+        };
+
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+    }, []);
 
     useEffect(() => {
         const rawHtml = md.render(preprocessMarkdown(resolvedMarkdownInput));

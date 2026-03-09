@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "vibe-101-publish helper",
+  "description": "Send selected text or page content to vibe-101-publish workspace.",
+  "version": "0.1.0",
+  "permissions": ["activeTab", "storage", "contextMenus", "scripting", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/placeholder-16.svg",
+    "32": "icons/placeholder-32.svg",
+    "48": "icons/placeholder-48.svg"
+  },
+  "action": {
+    "default_title": "vibe-101-publish",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/placeholder-16.svg",
+      "32": "icons/placeholder-32.svg"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

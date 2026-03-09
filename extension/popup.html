@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vibe-101-publish helper</title>
+  <style>
+    body{font-family:Inter,system-ui,sans-serif;margin:0;padding:14px;background:#0f172a;color:#e2e8f0;width:320px}
+    h1{font-size:16px;margin:0 0 10px 0}
+    .meta{font-size:12px;color:#94a3b8;margin-bottom:10px;line-height:1.5}
+    .group{display:flex;flex-direction:column;gap:8px}
+    button,select{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#1e293b;color:#e2e8f0}
+    .status{margin-top:10px;font-size:12px;color:#93c5fd;min-height:18px}
+  </style>
+</head>
+<body>
+  <h1>vibe-101-publish helper</h1>
+  <div class="meta" id="pageMeta">Loading…</div>
+  <div class="group">
+    <select id="target">
+      <option value="local">本地工作台 / Local</option>
+      <option value="prod" selected>线上工作台 / Production</option>
+    </select>
+    <button id="sendSelection">发送选中文本</button>
+    <button id="sendPage">抓取当前页内容</button>
+    <button id="openWorkspaceOnly">仅打开工作台</button>
+  </div>
+  <div class="status" id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
